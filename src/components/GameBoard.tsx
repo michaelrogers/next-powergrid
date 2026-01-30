@@ -10,6 +10,9 @@ import { useGame } from '@/contexts/GameContext';
 import { GamePhase } from '@/types/game';
 import RobotBadge from './RobotBadge';
 import GameMapComponent from './GameMap';
+import AuctionMarket from './AuctionMarket';
+import FuelMarket from './FuelMarket';
+import PlayerPanel from './PlayerPanel';
 import { getMapByName } from '@/lib/mapData';
 
 export default function GameBoard() {
@@ -227,7 +230,11 @@ export default function GameBoard() {
 
       {/* Center Panel: Main Board */}
       <div className="col-span-2 bg-slate-800 rounded-lg p-6 flex flex-col">
-        {state.gameMap ? (
+        {state.phase === GamePhase.AUCTION ? (
+          <AuctionMarket />
+        ) : state.phase === GamePhase.FUEL_PURCHASE ? (
+          <FuelMarket />
+        ) : state.gameMap ? (
           <GameMapComponent
             map={state.gameMap}
             players={state.players}
@@ -242,29 +249,35 @@ export default function GameBoard() {
         )}
       </div>
 
-      {/* Right Panel: Players */}
-      <div className="col-span-1 bg-slate-800 rounded-lg p-4">
-        <h2 className="text-xl font-bold mb-4">Players</h2>
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {state.players.map((player) => (
-            <div
-              key={player.id}
-              className="bg-slate-700 rounded p-3 border-l-4 space-y-1.5"
-              style={{ borderLeftColor: player.color }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold text-sm">{player.name}</p>
-                {player.isRobot && player.robotDifficulty && (
-                  <RobotBadge difficulty={player.robotDifficulty} size="sm" />
-                )}
+      {/* Right Panel: Player Panel + Players List */}
+      <div className="col-span-1 space-y-4">
+        {/* Player's Empire Panel */}
+        <PlayerPanel />
+
+        {/* All Players List */}
+        <div className="bg-slate-800 rounded-lg p-4">
+          <h2 className="text-xl font-bold mb-4">All Players</h2>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {state.players.map((player) => (
+              <div
+                key={player.id}
+                className="bg-slate-700 rounded p-3 border-l-4 space-y-1.5"
+                style={{ borderLeftColor: player.color }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-sm">{player.name}</p>
+                  {player.isRobot && player.robotDifficulty && (
+                    <RobotBadge difficulty={player.robotDifficulty} size="sm" />
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">Money: ${player.money}</p>
+                <p className="text-xs text-gray-400">
+                  Cities: {Array.from(player.cities.values()).reduce((a, b) => a + b, 0)}
+                </p>
+                <p className="text-xs text-gray-400">Power Plants: {player.powerPlants.length}</p>
               </div>
-              <p className="text-xs text-gray-400">Money: ${player.money}</p>
-              <p className="text-xs text-gray-400">
-                Cities: {Array.from(player.cities.values()).reduce((a, b) => a + b, 0)}
-              </p>
-              <p className="text-xs text-gray-400">Power Plants: {player.powerPlants.length}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
