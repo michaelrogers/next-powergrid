@@ -89,6 +89,18 @@ export default function GameMapComponent({
         {/* Background */}
         <rect width={map.width} height={map.height} fill="#1e293b" />
 
+        {/* Country Outline */}
+        {map.countryOutline && (
+          <path
+            d={map.countryOutline}
+            fill="#1e3a5f"
+            fillOpacity="0.2"
+            stroke="#3b82f6"
+            strokeWidth="3"
+            strokeOpacity="0.6"
+          />
+        )}
+
         {/* Region outlines and backgrounds */}
         {map.regions.map((region) => {
           const cities = region.cities;
