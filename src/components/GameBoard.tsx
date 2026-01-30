@@ -5,6 +5,7 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { GamePhase } from '@/types/game';
 import RobotBadge from './RobotBadge';
@@ -12,40 +13,199 @@ import GameMapComponent from './GameMap';
 import { getMapByName } from '@/lib/mapData';
 
 export default function GameBoard() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
 
   const humanPlayers = state.players.filter((p) => !p.isRobot);
   const robotPlayers = state.players.filter((p) => p.isRobot);
 
+  const handleNextPhase = () => {
+    dispatch({ type: 'NEXT_PHASE' });
+  };
+
+  const handleEndRound = () => {
+    dispatch({ type: 'END_ROUND' });
+  };
+
+  const handleCityClick = (cityId: string, cityName: string) => {
+    if (state.phase === GamePhase.BUILD_CITIES) {
+      setSelectedCities((prev) => {
+        if (prev.includes(cityId)) {
+          return prev.filter((id) => id !== cityId);
+        }
+        return [...prev, cityId];
+      });
+    }
+  };
+
+  const handleBuildCity = () => {
+    if (selectedCities.length > 0) {
+      // For now, just build for the first player (in real game, track current player)
+      const player = state.players[0];
+      dispatch({
+        type: 'BUILD_CITY',
+        payload: {
+          playerId: player.id,
+          region: 'test_region', // Would be determined from selected city
+          cityCount: selectedCities.length,
+        },
+      });
+      setSelectedCities([]);
+    }
+  };
+
+  // Render phase-specific controls
+  const renderPhaseControls = () => {
+    switch (state.phase) {
+      case GamePhase.SETUP:
+        return (
+          <div className="bg-blue-900/50 border border-blue-500 rounded-lg p-4">
+            <h3 className="font-bold mb-2">Setup Phase</h3>
+            <p className="text-sm text-gray-300 mb-3">Game is being initialized...</p>
+            <button
+              onClick={handleNextPhase}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              Start Game
+            </button>
+          </div>
+        );
+
+      case GamePhase.AUCTION:
+        return (
+          <div className="bg-yellow-900/50 border border-yellow-500 rounded-lg p-4">
+            <h3 className="font-bold mb-2">⚡ Auction Phase</h3>
+            <p className="text-sm text-gray-300 mb-3">
+              Players bid on power plants. Highest bidder wins the plant.
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={handleNextPhase}
+                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Skip Auction (For Now)
+              </button>
+              <p className="text-xs text-gray-400 text-center">
+                Auction system will be fully implemented soon
+              </p>
+            </div>
+          </div>
+        );
+
+      case GamePhase.FUEL_PURCHASE:
+        return (
+          <div className="bg-orange-900/50 border border-orange-500 rounded-lg p-4">
+            <h3 className="font-bold mb-2">🛢️ Fuel Purchase Phase</h3>
+            <p className="text-sm text-gray-300 mb-3">
+              Buy fuel for your power plants from the market.
+            </p>
+            <button
+              onClick={handleNextPhase}
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              Skip Fuel Purchase
+            </button>
+          </div>
+        );
+
+      case GamePhase.BUILD_CITIES:
+        return (
+          <div className="bg-green-900/50 border border-green-500 rounded-lg p-4">
+            <h3 className="font-bold mb-2">🏙️ Build Cities Phase</h3>
+            <p className="text-sm text-gray-300 mb-3">
+              Click cities on the map to select them, then build connections.
+            </p>
+            {selectedCities.length > 0 && (
+              <div className="mb-3 p-2 bg-slate-700 rounded">
+                <p className="text-xs text-gray-400">Selected: {selectedCities.length} cities</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              {selectedCities.length > 0 && (
+                <button
+                  onClick={handleBuildCity}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                >
+                  Build in Selected Cities (${selectedCities.length * 10})
+                </button>
+              )}
+              <button
+                onClick={handleNextPhase}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                {selectedCities.length > 0 ? 'Skip & Continue' : 'Continue (No Build)'}
+              </button>
+            </div>
+          </div>
+        );
+
+      case GamePhase.BUREAUCRACY:
+        return (
+          <div className="bg-purple-900/50 border border-purple-500 rounded-lg p-4">
+            <h3 className="font-bold mb-2">💰 Bureaucracy Phase</h3>
+            <p className="text-sm text-gray-300 mb-3">
+              Players earn money based on cities they can power.
+            </p>
+            <button
+              onClick={handleEndRound}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              End Round → Round {state.round + 1}
+            </button>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="bg-slate-700 rounded-lg p-4">
+            <button
+              onClick={handleNextPhase}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              Next Phase
+            </button>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="grid grid-cols-4 gap-6 p-6 h-screen bg-slate-900 text-white">
-      {/* Left Panel: Game Info */}
-      <div className="col-span-1 bg-slate-800 rounded-lg p-4">
-        <h2 className="text-2xl font-bold mb-4">Game Info</h2>
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-gray-400">Round</p>
-            <p className="text-xl font-semibold">{state.round}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-400">Phase</p>
-            <p className="text-lg font-semibold capitalize">{state.phase.replace(/_/g, ' ')}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-400">Players</p>
-            <p className="text-lg font-semibold">
-              {humanPlayers.length} {humanPlayers.length > 1 ? 'Humans' : 'Human'}
-              {robotPlayers.length > 0 ? ` + ${robotPlayers.length} Robot${robotPlayers.length > 1 ? 's' : ''}` : ''}
-            </p>
-          </div>
-          {robotPlayers.length > 0 && (
-            <div className="pt-2 border-t border-slate-600">
-              <p className="text-xs text-gray-400 mb-1">Robot Difficulty</p>
-              {robotPlayers[0].robotDifficulty && (
-                <RobotBadge difficulty={robotPlayers[0].robotDifficulty} size="sm" />
-              )}
+      {/* Left Panel: Game Info & Controls */}
+      <div className="col-span-1 bg-slate-800 rounded-lg p-4 space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold mb-4">Game Info</h2>
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm text-gray-400">Round</p>
+              <p className="text-xl font-semibold">{state.round}</p>
             </div>
-          )}
+            <div>
+              <p className="text-sm text-gray-400">Phase</p>
+              <p className="text-lg font-semibold capitalize">{state.phase.replace(/_/g, ' ')}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-400">Players</p>
+              <p className="text-lg font-semibold">
+                {humanPlayers.length} {humanPlayers.length > 1 ? 'Humans' : 'Human'}
+                {robotPlayers.length > 0 ? ` + ${robotPlayers.length} Robot${robotPlayers.length > 1 ? 's' : ''}` : ''}
+              </p>
+            </div>
+            {robotPlayers.length > 0 && (
+              <div className="pt-2 border-t border-slate-600">
+                <p className="text-xs text-gray-400 mb-1">Robot Difficulty</p>
+                {robotPlayers[0].robotDifficulty && (
+                  <RobotBadge difficulty={robotPlayers[0].robotDifficulty} size="sm" />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Phase Controls */}
+        <div className="border-t border-slate-600 pt-4">
+          <h3 className="text-lg font-bold mb-3">Phase Actions</h3>
+          {renderPhaseControls()}
         </div>
       </div>
 
@@ -56,6 +216,8 @@ export default function GameBoard() {
             map={state.gameMap}
             players={state.players}
             buildMode={state.phase === GamePhase.BUILD_CITIES}
+            onCityClick={handleCityClick}
+            selectedCities={selectedCities}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
