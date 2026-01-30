@@ -8,7 +8,7 @@ import { Player, GameConfig, RegionMap } from '@/types/game';
 function GameSetup() {
   const { dispatch } = useGame();
   const [playerCount, setPlayerCount] = useState(2);
-  const [gameMode, setGameMode] = useState<'pvp' | 'solo'>('pvp');
+  const [gameMode, setGameMode] = useState<'pvp' | 'solo'>('solo');
   const [robotDifficulty, setRobotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [selectedMap, setSelectedMap] = useState<'usa' | 'germany' | 'france'>('usa');
 
