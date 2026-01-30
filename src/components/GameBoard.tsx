@@ -19,6 +19,12 @@ export default function GameBoard() {
   const humanPlayers = state.players.filter((p) => !p.isRobot);
   const robotPlayers = state.players.filter((p) => p.isRobot);
 
+  const handleReturnToMenu = () => {
+    if (confirm('Are you sure you want to return to menu? All progress will be lost.')) {
+      dispatch({ type: 'RESET_GAME' });
+    }
+  };
+
   const handleNextPhase = () => {
     dispatch({ type: 'NEXT_PHASE' });
   };
@@ -206,6 +212,16 @@ export default function GameBoard() {
         <div className="border-t border-slate-600 pt-4">
           <h3 className="text-lg font-bold mb-3">Phase Actions</h3>
           {renderPhaseControls()}
+        </div>
+
+        {/* Return to Menu */}
+        <div className="border-t border-slate-600 pt-4">
+          <button
+            onClick={handleReturnToMenu}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors text-sm"
+          >
+            ← Return to Menu
+          </button>
         </div>
       </div>
 

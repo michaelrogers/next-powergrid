@@ -23,6 +23,7 @@ export type GameAction =
   | { type: 'BUY_FUEL'; payload: { playerId: string; fuelType: string; quantity: number } }
   | { type: 'BUILD_CITY'; payload: { playerId: string; region: string; cityCount: number } }
   | { type: 'END_ROUND' }
+  | { type: 'RESET_GAME' }
   | { type: 'ROBOT_TURN'; payload: { playerId: string } };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -96,6 +97,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // This would be extended to handle robot auction, fuel, and build decisions
       return state;
     }
+
+    case 'RESET_GAME':
+      return initialGameState;
 
     default:
       return state;
