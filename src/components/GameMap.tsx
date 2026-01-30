@@ -89,19 +89,59 @@ export default function GameMapComponent({
         {/* Background */}
         <rect width={map.width} height={map.height} fill="#1e293b" />
 
-        {/* Region backgrounds */}
-        {map.regions.map((region) => (
-          <g key={region.id} opacity={0.1}>
-            <rect
-              x={region.cities.reduce((min, c) => Math.min(min, (c.x / 100) * map.width - 50), Infinity)}
-              y={region.cities.reduce((min, c) => Math.min(min, (c.y / 100) * map.height - 50), Infinity)}
-              width={100}
-              height={100}
-              fill="#3b82f6"
-              rx={5}
-            />
-          </g>
-        ))}
+        {/* Region outlines and backgrounds */}
+        {map.regions.map((region) => {
+          const cities = region.cities;
+          if (cities.length === 0) return null;
+
+          const xs = cities.map((c) => (c.x / 100) * map.width);
+          const ys = cities.map((c) => (c.y / 100) * map.height);
+          const minX = Math.min(...xs);
+          const maxX = Math.max(...xs);
+          const minY = Math.min(...ys);
+          const maxY = Math.max(...ys);
+          const padding = 40;
+
+          return (
+            <g key={`region-${region.id}`}>
+              {/* Region background with outline */}
+              <rect
+                x={minX - padding}
+                y={minY - padding}
+                width={maxX - minX + padding * 2}
+                height={maxY - minY + padding * 2}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="2"
+                opacity="0.4"
+                rx="8"
+              />
+              
+              {/* Semi-transparent region fill */}
+              <rect
+                x={minX - padding}
+                y={minY - padding}
+                width={maxX - minX + padding * 2}
+                height={maxY - minY + padding * 2}
+                fill="#3b82f6"
+                opacity="0.05"
+                rx="8"
+              />
+
+              {/* Region label */}
+              <text
+                x={minX - padding + 10}
+                y={minY - padding + 18}
+                fontSize="12"
+                fill="#60a5fa"
+                fontWeight="bold"
+                className="pointer-events-none select-none"
+              >
+                {region.name}
+              </text>
+            </g>
+          );
+        })}
 
         {/* Connections (Power Lines) */}
         {map.connections.map((conn, idx) => {
@@ -188,29 +228,58 @@ export default function GameMapComponent({
                   opacity={isHovered ? 1 : 0.85}
                 />
 
-                {/* City label on hover */}
+                {/* City label - always visible */}
+                <g>
+                  <text
+                    x={x}
+                    y={y + 18}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="white"
+                    fontWeight="bold"
+                    className="pointer-events-none select-none drop-shadow"
+                    style={{
+                      textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+                      filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.9))',
+                    }}
+                  >
+                    {city.name}
+                  </text>
+                </g>
+
+                {/* Hover tooltip with ownership info */}
                 {isHovered && (
                   <g>
                     <rect
-                      x={x - 35}
-                      y={y - 30}
-                      width="70"
-                      height="22"
-                      fill="rgba(15, 23, 42, 0.95)"
-                      stroke="#64748b"
-                      strokeWidth="1"
-                      rx="3"
+                      x={x - 40}
+                      y={y - 35}
+                      width="80"
+                      height="24"
+                      fill="rgba(15, 23, 42, 0.98)"
+                      stroke="#60a5fa"
+                      strokeWidth="1.5"
+                      rx="4"
                     />
                     <text
                       x={x}
-                      y={y - 14}
+                      y={y - 18}
                       textAnchor="middle"
-                      fontSize="11"
-                      fill="white"
+                      fontSize="9"
+                      fill="#93c5fd"
                       fontWeight="bold"
                       className="pointer-events-none select-none"
                     >
                       {city.name}
+                    </text>
+                    <text
+                      x={x}
+                      y={y - 8}
+                      textAnchor="middle"
+                      fontSize="8"
+                      fill="#cbd5e1"
+                      className="pointer-events-none select-none"
+                    >
+                      {getCityOwner(city.id)?.name || 'Unowned'}
                     </text>
                   </g>
                 )}
