@@ -1,65 +1,180 @@
-import Image from "next/image";
+'use client';
+
+import { GameProvider, useGame } from '@/contexts/GameContext';
+import GameBoard from '@/components/GameBoard';
+import { useState } from 'react';
+import { Player, GameConfig, RegionMap } from '@/types/game';
+
+function GameSetup() {
+  const { dispatch } = useGame();
+  const [playerCount, setPlayerCount] = useState(2);
+  const [gameMode, setGameMode] = useState<'pvp' | 'solo'>('pvp');
+  const [robotDifficulty, setRobotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [selectedMap, setSelectedMap] = useState<'usa' | 'germany' | 'france'>('usa');
+
+  const handleStartGame = () => {
+    let totalPlayers = playerCount;
+    let robotCount = 0;
+
+    if (gameMode === 'solo') {
+      totalPlayers = 1 + playerCount; // 1 human + N robots
+      robotCount = playerCount;
+    }
+
+    const players: Player[] = Array.from({ length: totalPlayers }, (_, i) => {
+      const isRobot = gameMode === 'solo' && i > 0;
+      return {
+        id: `player_${i}`,
+        name: isRobot ? `Robot ${i}` : 'You',
+        color: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'][i % 6],
+        money: 50,
+        powerPlants: [],
+        cities: new Map(),
+        resources: { coal: 0, oil: 0, garbage: 0, nuclear: 0 },
+        electricityProduced: 0,
+        isRobot,
+        robotDifficulty: isRobot ? robotDifficulty : undefined,
+      };
+    });
+
+    const config: GameConfig = {
+      playerCount: totalPlayers,
+      map: selectedMap,
+      difficulty: gameMode === 'solo' ? robotDifficulty : 'normal',
+      includedRobots: robotCount,
+    };
+
+    dispatch({ type: 'INITIALIZE_GAME', payload: { config, players } });
+  };
+
+  return (
+    <main className="flex min-h-screen w-full flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-6">
+      <div className="max-w-md w-full bg-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700">
+        <h1 className="text-4xl font-bold text-white mb-2 text-center">Power Grid</h1>
+        <p className="text-gray-400 text-center mb-8">Recharged - Build your power empire</p>
+
+        <div className="space-y-6">
+          {/* Game Mode Selection */}
+          <div>
+            <label className="block text-white font-semibold mb-3">Game Mode</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setGameMode('pvp')}
+                className={`flex-1 py-2 px-3 rounded font-semibold transition-colors text-sm ${
+                  gameMode === 'pvp'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                }`}
+              >
+                Multiplayer
+              </button>
+              <button
+                onClick={() => setGameMode('solo')}
+                className={`flex-1 py-2 px-3 rounded font-semibold transition-colors text-sm ${
+                  gameMode === 'solo'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                }`}
+              >
+                Solo (Robots)
+              </button>
+            </div>
+          </div>
+
+          {/* Player Count Selection */}
+          <div>
+            <label className="block text-white font-semibold mb-2">
+              {gameMode === 'solo' ? 'Number of Robots' : 'Number of Players'}
+            </label>
+            <div className="flex gap-2">
+              {gameMode === 'solo' ? (
+                [1, 2, 3, 4, 5].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setPlayerCount(num)}
+                    className={`flex-1 py-2 rounded font-bold transition-colors ${
+                      playerCount === num
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))
+              ) : (
+                [2, 3, 4, 5, 6].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setPlayerCount(num)}
+                    className={`flex-1 py-2 rounded font-bold transition-colors ${
+                      playerCount === num
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Robot Difficulty Selection */}
+          {gameMode === 'solo' && (
+            <div>
+              <label className="block text-white font-semibold mb-2">Robot Difficulty</label>
+              <div className="flex gap-2">
+                {['easy', 'medium', 'hard'].map((diff) => (
+                  <button
+                    key={diff}
+                    onClick={() => setRobotDifficulty(diff as 'easy' | 'medium' | 'hard')}
+                    className={`flex-1 py-2 rounded font-semibold transition-colors text-sm capitalize ${
+                      robotDifficulty === diff
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                    }`}
+                  >
+                    {diff}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Map Selection */}
+          <div>
+            <label className="block text-white font-semibold mb-2">Map</label>
+            <div className="grid grid-cols-3 gap-2">
+              {['usa', 'germany', 'france'].map((map) => (
+                <button
+                  key={map}
+                  onClick={() => setSelectedMap(map as 'usa' | 'germany' | 'france')}
+                  className={`py-2 px-3 rounded font-semibold transition-colors text-sm capitalize ${
+                    selectedMap === map
+                      ? 'bg-green-600 text-white'
+                      : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                  }`}
+                >
+                  {map === 'usa' ? '🇺🇸 USA' : map === 'germany' ? '🇩🇪 Germany' : '🇫🇷 France'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={handleStartGame}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors text-lg"
+          >
+            Start Game
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
 
 export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  const { state } = useGame();
+
+  return state.players.length > 0 ? <GameBoard /> : <GameSetup />;
 }
