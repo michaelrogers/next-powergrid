@@ -16,6 +16,7 @@ export interface MapRegion {
   name: string;
   cities: City[];
   costMultiplier: number; // cost adjustment for this region
+  regionOutline?: string; // optional SVG path outlining the region area
 }
 
 export interface GameMap {
@@ -34,12 +35,14 @@ export const USA_MAP: GameMap = {
   name: 'United States',
   width: 1000,
   height: 600,
-  countryOutline: 'M 100,150 L 120,120 L 150,100 L 200,90 L 250,85 L 300,80 L 350,75 L 400,70 L 450,65 L 500,60 L 550,65 L 600,70 L 650,75 L 700,80 L 750,85 L 800,90 L 850,100 L 880,120 L 900,150 L 920,180 L 930,210 L 940,240 L 945,270 L 950,300 L 950,330 L 945,360 L 940,390 L 930,420 L 920,450 L 900,480 L 880,500 L 850,510 L 800,515 L 750,520 L 700,525 L 650,530 L 600,535 L 550,540 L 500,545 L 450,550 L 400,555 L 350,555 L 300,550 L 250,540 L 200,520 L 180,500 L 170,480 L 165,460 L 160,440 L 155,420 L 150,400 L 145,380 L 140,360 L 135,340 L 130,320 L 125,300 L 120,280 L 115,260 L 110,240 L 105,220 L 100,200 Z',
+  // improved USA outline approximating continental US silhouette
+  countryOutline: 'M80,120 C96,88 130,66 180,58 C230,52 290,54 350,70 C410,86 470,98 520,114 C560,132 600,150 640,174 C680,200 720,236 760,276 C792,312 814,352 824,392 C830,420 828,450 808,480 C782,510 740,526 688,536 C632,544 572,548 512,548 C452,548 392,544 332,536 C286,528 242,514 198,494 C166,478 138,456 118,426 C104,400 98,368 96,334 C94,300 96,268 104,238 C112,208 124,182 142,156 C156,138 168,126 182,120 C196,116 220,118 80,120 Z',
   regions: [
     {
       id: 'northeast',
       name: 'Northeast',
       costMultiplier: 1.2,
+      regionOutline: 'M72,8 C78,6 86,6 92,10 C98,14 96,22 90,26 C84,24 78,18 72,8 Z',
       cities: [
         { id: 'boston', name: 'Boston', x: 85, y: 15, region: 'northeast' },
         { id: 'newyork', name: 'New York', x: 80, y: 18, region: 'northeast' },
@@ -51,6 +54,7 @@ export const USA_MAP: GameMap = {
       id: 'midwest',
       name: 'Midwest',
       costMultiplier: 1.0,
+      regionOutline: 'M36,12 C46,8 58,10 64,20 C62,28 54,34 46,32 C42,24 38,18 36,12 Z',
       cities: [
         { id: 'chicago', name: 'Chicago', x: 50, y: 25, region: 'midwest' },
         { id: 'detroit', name: 'Detroit', x: 55, y: 20, region: 'midwest' },
@@ -62,6 +66,7 @@ export const USA_MAP: GameMap = {
       id: 'south',
       name: 'South',
       costMultiplier: 0.9,
+      regionOutline: 'M56,30 C66,26 76,30 78,40 C76,50 64,54 54,52 C48,46 46,38 56,30 Z',
       cities: [
         { id: 'atlanta', name: 'Atlanta', x: 70, y: 40, region: 'south' },
         { id: 'houston', name: 'Houston', x: 35, y: 45, region: 'south' },
@@ -73,6 +78,7 @@ export const USA_MAP: GameMap = {
       id: 'west',
       name: 'West',
       costMultiplier: 1.1,
+      regionOutline: 'M6,6 C18,4 34,6 44,18 C42,28 32,34 18,34 C10,24 8,12 6,6 Z',
       cities: [
         { id: 'seattle', name: 'Seattle', x: 15, y: 12, region: 'west' },
         { id: 'portland', name: 'Portland', x: 18, y: 15, region: 'west' },
@@ -121,12 +127,14 @@ export const GERMANY_MAP: GameMap = {
   name: 'Germany',
   width: 800,
   height: 600,
-  countryOutline: 'M 200,100 L 250,90 L 300,85 L 350,80 L 400,75 L 450,72 L 500,75 L 540,85 L 560,100 L 570,120 L 575,140 L 580,160 L 585,180 L 590,200 L 595,220 L 600,250 L 605,280 L 610,310 L 615,340 L 620,370 L 620,400 L 615,430 L 605,450 L 590,470 L 570,485 L 545,495 L 515,500 L 480,505 L 445,510 L 410,512 L 375,510 L 340,505 L 305,498 L 270,490 L 240,480 L 215,465 L 195,445 L 180,420 L 170,390 L 165,360 L 160,330 L 155,300 L 152,270 L 150,240 L 155,210 L 165,180 L 180,150 L 190,130 Z',
+  // refined Germany outline with smoother curves
+  countryOutline: 'M180,115 C205,98 240,92 280,90 C320,88 360,92 400,100 C440,110 480,120 520,135 C548,148 570,165 590,190 C605,210 612,235 620,260 C628,285 632,310 636,340 C640,370 640,400 632,430 C622,455 602,475 576,490 C546,502 514,508 480,510 C440,512 400,510 360,506 C320,502 285,498 250,492 C220,486 200,468 185,445 C175,428 170,405 168,380 C166,350 168,320 172,290 C176,260 182,235 188,210 C192,190 184,135 180,115 Z',
   regions: [
     {
       id: 'north',
       name: 'North Germany',
       costMultiplier: 1.0,
+      regionOutline: 'M28,10 C38,6 52,6 60,12 C62,18 56,26 46,28 C36,24 30,16 28,10 Z',
       cities: [
         { id: 'hamburg', name: 'Hamburg', x: 45, y: 15, region: 'north' },
         { id: 'bremen', name: 'Bremen', x: 35, y: 18, region: 'north' },
@@ -137,6 +145,7 @@ export const GERMANY_MAP: GameMap = {
       id: 'west',
       name: 'West Germany',
       costMultiplier: 1.1,
+      regionOutline: 'M12,30 C22,26 34,26 40,34 C38,42 30,46 22,46 C14,42 12,34 12,30 Z',
       cities: [
         { id: 'cologne', name: 'Cologne', x: 20, y: 35, region: 'west' },
         { id: 'dusseldorf', name: 'Düsseldorf', x: 25, y: 32, region: 'west' },
@@ -147,6 +156,7 @@ export const GERMANY_MAP: GameMap = {
       id: 'east',
       name: 'East Germany',
       costMultiplier: 0.95,
+      regionOutline: 'M48,32 C56,28 68,30 72,38 C70,46 60,50 52,48 C48,42 48,36 48,32 Z',
       cities: [
         { id: 'leipzig', name: 'Leipzig', x: 55, y: 40, region: 'east' },
         { id: 'dresden', name: 'Dresden', x: 65, y: 42, region: 'east' },
@@ -156,6 +166,7 @@ export const GERMANY_MAP: GameMap = {
       id: 'south',
       name: 'South Germany',
       costMultiplier: 1.15,
+      regionOutline: 'M36,50 C46,46 62,46 66,60 C62,70 46,74 38,66 C34,60 34,54 36,50 Z',
       cities: [
         { id: 'munich', name: 'Munich', x: 60, y: 65, region: 'south' },
         { id: 'Stuttgart', name: 'Stuttgart', x: 42, y: 58, region: 'south' },
@@ -193,12 +204,14 @@ export const FRANCE_MAP: GameMap = {
   name: 'France',
   width: 800,
   height: 700,
-  countryOutline: 'M 250,100 L 300,90 L 350,85 L 400,80 L 450,78 L 500,80 L 540,90 L 560,105 L 570,120 L 575,140 L 580,165 L 585,190 L 590,220 L 595,250 L 600,280 L 605,310 L 610,340 L 615,370 L 620,400 L 625,430 L 630,460 L 632,490 L 630,520 L 625,545 L 615,565 L 600,580 L 580,590 L 555,595 L 525,598 L 495,600 L 465,598 L 435,595 L 405,590 L 375,583 L 345,575 L 315,565 L 285,553 L 255,540 L 230,525 L 210,507 L 195,485 L 185,460 L 180,430 L 178,400 L 180,370 L 185,340 L 190,310 L 195,280 L 200,250 L 205,220 L 210,190 L 215,160 L 220,135 L 230,115 Z',
+  // refined France outline (smoother coastal curves)
+  countryOutline: 'M240,110 C280,95 320,90 360,90 C400,90 440,94 480,104 C510,112 538,124 560,140 C580,156 596,176 610,200 C622,222 632,248 640,278 C648,308 652,338 654,370 C656,402 654,436 648,468 C642,496 630,520 616,542 C596,564 572,578 544,588 C512,598 480,600 446,598 C418,596 390,592 362,586 C332,580 304,572 276,562 C248,552 226,542 206,528 C190,516 178,500 168,482 C160,466 154,444 152,420 C150,396 152,372 156,350 C160,328 168,306 178,288 C188,270 200,252 216,236 C230,222 238,200 240,180 C242,160 236,130 240,110 Z',
   regions: [
     {
       id: 'paris',
       name: 'Paris',
       costMultiplier: 1.2,
+      regionOutline: 'M30,22 C38,18 46,18 50,26 C50,34 44,36 36,36 C30,30 30,26 30,22 Z',
       cities: [
         { id: 'paris', name: 'Paris', x: 35, y: 28, region: 'paris' },
         { id: 'orleans', name: 'Orléans', x: 40, y: 35, region: 'paris' },
@@ -208,6 +221,7 @@ export const FRANCE_MAP: GameMap = {
       id: 'north',
       name: 'Nord',
       costMultiplier: 1.1,
+      regionOutline: 'M36,8 C42,6 48,6 52,12 C50,20 42,22 34,18 C30,14 34,10 36,8 Z',
       cities: [
         { id: 'lille', name: 'Lille', x: 42, y: 12, region: 'north' },
         { id: 'amiens', name: 'Amiens', x: 38, y: 18, region: 'north' },
@@ -217,6 +231,7 @@ export const FRANCE_MAP: GameMap = {
       id: 'south',
       name: 'Midi',
       costMultiplier: 1.0,
+      regionOutline: 'M20,62 C30,60 44,60 52,70 C48,78 36,84 26,80 C20,74 20,68 20,62 Z',
       cities: [
         { id: 'toulouse', name: 'Toulouse', x: 30, y: 75, region: 'south' },
         { id: 'marseille', name: 'Marseille', x: 55, y: 72, region: 'south' },
@@ -227,6 +242,7 @@ export const FRANCE_MAP: GameMap = {
       id: 'east',
       name: 'Est',
       costMultiplier: 1.05,
+      regionOutline: 'M52,30 C60,28 70,30 74,38 C72,46 60,50 54,46 C50,40 52,34 52,30 Z',
       cities: [
         { id: 'nancy', name: 'Nancy', x: 60, y: 32, region: 'east' },
         { id: 'strasbourg', name: 'Strasbourg', x: 70, y: 35, region: 'east' },
@@ -236,6 +252,7 @@ export const FRANCE_MAP: GameMap = {
       id: 'west',
       name: 'Ouest',
       costMultiplier: 0.95,
+      regionOutline: 'M18,42 C26,38 36,38 36,50 C32,60 22,64 14,56 C12,50 14,46 18,42 Z',
       cities: [
         { id: 'nantes', name: 'Nantes', x: 25, y: 48, region: 'west' },
         { id: 'bordeaux', name: 'Bordeaux', x: 20, y: 62, region: 'west' },
@@ -283,4 +300,52 @@ export function getAllCities(map: GameMap): City[] {
 export function getCitiesInRegion(map: GameMap, regionId: string): City[] {
   const region = map.regions.find((r) => r.id === regionId);
   return region?.cities || [];
+}
+
+/**
+ * Check if a city is connected to a player's existing network
+ * @param cityId City to check
+ * @param playerCities Set of cities the player owns
+ * @param connections Map connections
+ * @returns true if connected or first city
+ */
+export function isConnectedToNetwork(
+  cityId: string,
+  playerCities: Map<string, number>,
+  connections: Array<{ cityA: string; cityB: string }>
+): boolean {
+  // First city is always valid
+  if (playerCities.size === 0) return true;
+
+  const ownedCities = Array.from(playerCities.keys());
+  
+  // Check if cityId is directly connected to any owned city
+  return connections.some(conn =>
+    (conn.cityA === cityId && ownedCities.includes(conn.cityB)) ||
+    (conn.cityB === cityId && ownedCities.includes(conn.cityA))
+  );
+}
+
+/**
+ * Calculate the cost to build in a city based on connections
+ * @param cityId City to build in
+ * @param playerCities Cities the player owns
+ * @param connections Map connections
+ * @param baseCost Base building cost
+ * @returns Cost to build
+ */
+export function calculateBuildCost(
+  cityId: string,
+  playerCities: Map<string, number>,
+  connections: Array<{ cityA: string; cityB: string }>,
+  baseCost: number = 10
+): number {
+  // First city: base cost
+  if (playerCities.size === 0) return baseCost;
+
+  // Find shortest path distance to existing network
+  // For simplicity, use direct connection = baseCost, otherwise baseCost + 5 per hop
+  const isDirectlyConnected = isConnectedToNetwork(cityId, playerCities, connections);
+  
+  return isDirectlyConnected ? baseCost : baseCost + 5;
 }

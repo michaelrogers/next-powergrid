@@ -2,6 +2,8 @@
 
 import { GameProvider, useGame } from '@/contexts/GameContext';
 import GameBoard from '@/components/GameBoard';
+import GameMapComponent from '@/components/GameMap';
+import { MAPS } from '@/lib/mapData';
 import { useState } from 'react';
 import { Player, GameConfig, RegionMap } from '@/types/game';
 
@@ -11,6 +13,7 @@ function GameSetup() {
   const [gameMode, setGameMode] = useState<'pvp' | 'solo'>('solo');
   const [robotDifficulty, setRobotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [selectedMap, setSelectedMap] = useState<'usa' | 'germany' | 'france'>('usa');
+  const [selectedPreview, setSelectedPreview] = useState<string | null>(null);
 
   const handleStartGame = () => {
     let totalPlayers = playerCount;
@@ -142,6 +145,27 @@ function GameSetup() {
           )}
 
           {/* Map Selection */}
+          {/* Map Preview - minimal: only country outline and stats */}
+          <div className="mb-4">
+            {(() => {
+              const mapObj = MAPS[selectedMap];
+              const cityCount = mapObj.regions.flatMap((r) => r.cities).length;
+              return (
+                <div
+                  className="h-48 bg-slate-800 rounded-lg p-2 border border-slate-700 cursor-pointer"
+                  onClick={() => setSelectedPreview(selectedMap)}
+                >
+                  <div className="w-full h-full block">
+                    <GameMapComponent map={MAPS[selectedMap]} players={[]} compact />
+                  </div>
+                  <div className="mt-2 text-xs text-gray-300 text-center">
+                    {mapObj.name} • {mapObj.regions.length} regions • {cityCount} cities
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
           <div>
             <label className="block text-white font-semibold mb-2">Map</label>
             <div className="grid grid-cols-3 gap-2">
@@ -167,6 +191,8 @@ function GameSetup() {
           >
             Start Game
           </button>
+        
+        
         </div>
       </div>
     </main>

@@ -1,13 +1,14 @@
 /**
  * Fuel Market Component
- * Buy fuel resources for power plants
+ * Buy fuel resources for power plants with robot AI support
  */
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { FuelType } from '@/types/game';
+import { RobotAI } from '@/lib/robotAI';
 
 const FUEL_COSTS: Record<FuelType, number> = {
   coal: 3,
@@ -36,6 +37,58 @@ export default function FuelMarket() {
   const [quantity, setQuantity] = useState(1);
 
   const humanPlayer = state.players.find(p => !p.isRobot);
+  const currentPlayer = state.players.find(p => p.id === state.currentTurn);
+  const isHumanTurn = currentPlayer && !currentPlayer.isRobot;
+
+  // Auto-play robot fuel purchases
+  useEffect(() => {
+    if (!currentPlayer || !currentPlayer.isRobot) return;
+
+    const timer = setTimeout(() => {
+      const difficulty = (currentPlayer.robotDifficulty || 'medium') as string;
+      const strategy = RobotAI.STRATEGIES[difficulty.toLowerCase() as keyof typeof RobotAI.STRATEGIES];
+      
+      const purchases = RobotAI.decideFuelPurchase(currentPlayer, state, strategy);
+      
+      // Convert Record to array of purchases
+      Object.entries(purchases).forEach(([fuelType, quantity]) => {
+        if (quantity > 0) {
+          const fuel = fuelType as FuelType;
+          const fuelEntries = state.fuelMarket[fuel];
+          if (fuelEntries && fuelEntries.length > 0) {
+            const cost = fuelEntries[0].price * quantity;
+            dispatch({
+              type: 'BUY_FUEL',
+              payload: {
+                playerId: currentPlayer.id,
+                fuelType: fuel,
+                quantity,
+                cost,
+              },
+            });
+          }
+        }
+      });
+      
+      // Advance turn
+      advanceTurn();
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [currentPlayer, state.currentTurn]);
+
+  const advanceTurn = () => {
+    if (!state.currentTurn) return;
+    
+    const currentIndex = state.players.findIndex(p => p.id === state.currentTurn);
+    const nextIndex = (currentIndex + 1) % state.players.length;
+    
+    dispatch({
+      type: 'SET_CURRENT_TURN',
+      payload: { playerId: state.players[nextIndex].id },
+    });
+  };
+
   if (!humanPlayer) return null;
 
   const handleBuyFuel = () => {
@@ -59,6 +112,7 @@ export default function FuelMarket() {
         },
       });
       setQuantity(1);
+      advanceTurn();
     }
   };
 
@@ -83,6 +137,15 @@ export default function FuelMarket() {
     <div className="w-full h-full bg-gradient-to-b from-slate-900 to-slate-950 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-orange-400 mb-4">🛢️ Fuel Market</h2>
       <p className="text-slate-400 mb-6">Purchase fuel for your power plants</p>
+
+      {/* Turn Indicator */}
+      {currentPlayer && (
+        <div className={`mb-4 rounded p-3 border ${isHumanTurn ? 'bg-blue-900/30 border-blue-500' : 'bg-slate-700 border-slate-600'}`}>
+          <p className="text-xs text-slate-400 mb-1">Current Turn</p>
+          <p className="text-lg font-bold text-slate-200">{currentPlayer.name}</p>
+          {!isHumanTurn && <p className="text-xs text-slate-400 mt-1">Shopping...</p>}
+        </div>
+      )}
 
       {/* Player Info */}
       <div className="bg-slate-800 rounded-lg p-4 mb-6 border border-slate-600">

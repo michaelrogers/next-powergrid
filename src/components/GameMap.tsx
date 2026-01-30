@@ -15,6 +15,7 @@ interface GameMapProps {
   onCityClick?: (cityId: string, cityName: string) => void;
   selectedCities?: string[];
   buildMode?: boolean;
+  compact?: boolean; // when true, hide UI chrome (title, legend, player list)
 }
 
 export default function GameMapComponent({
@@ -23,6 +24,7 @@ export default function GameMapComponent({
   onCityClick,
   selectedCities = [],
   buildMode = false,
+  compact = false,
 }: GameMapProps) {
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
 
@@ -72,18 +74,19 @@ export default function GameMapComponent({
 
   return (
     <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-900 rounded-lg p-4 flex flex-col">
-      {/* Map Title */}
-      <div className="mb-2">
-        <h3 className="text-lg font-bold text-white">{map.name}</h3>
-        <p className="text-xs text-gray-400">
-          {map.regions.length} regions • {map.regions.flatMap((r) => r.cities).length} cities
-        </p>
-      </div>
+      {!compact && (
+        <div className="mb-2">
+          <h3 className="text-lg font-bold text-white">{map.name}</h3>
+          <p className="text-xs text-gray-400">
+            {map.regions.length} regions • {map.regions.flatMap((r) => r.cities).length} cities
+          </p>
+        </div>
+      )}
 
       {/* SVG Map */}
       <svg
         viewBox={`0 0 ${map.width} ${map.height}`}
-        className="flex-1 bg-slate-800 rounded border-2 border-slate-600 hover:border-slate-500 transition-colors"
+        className={`flex-1 ${compact ? '' : 'bg-slate-800 rounded border-2 border-slate-600 hover:border-slate-500 transition-colors'}`}
         style={{ maxHeight: '100%' }}
       >
         {/* Background */}
@@ -116,29 +119,45 @@ export default function GameMapComponent({
 
           return (
             <g key={`region-${region.id}`}>
-              {/* Region background with outline */}
-              <rect
-                x={minX - padding}
-                y={minY - padding}
-                width={maxX - minX + padding * 2}
-                height={maxY - minY + padding * 2}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="2"
-                opacity="0.4"
-                rx="8"
-              />
-              
-              {/* Semi-transparent region fill */}
-              <rect
-                x={minX - padding}
-                y={minY - padding}
-                width={maxX - minX + padding * 2}
-                height={maxY - minY + padding * 2}
-                fill="#3b82f6"
-                opacity="0.05"
-                rx="8"
-              />
+              {/* If a regionOutline is provided, render it (assumed in 0-100 coord space) */}
+              {region.regionOutline ? (
+                <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+                  <path
+                    d={region.regionOutline}
+                    fill="#2563eb"
+                    fillOpacity="0.06"
+                    stroke="#60a5fa"
+                    strokeWidth="0.8"
+                    strokeOpacity="0.45"
+                  />
+                </g>
+              ) : (
+                /* Fallback rectangle bounding box when no outline provided */
+                <>
+                  <rect
+                    x={minX - padding}
+                    y={minY - padding}
+                    width={maxX - minX + padding * 2}
+                    height={maxY - minY + padding * 2}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                    opacity="0.4"
+                    rx="8"
+                  />
+
+                  {/* Semi-transparent region fill */}
+                  <rect
+                    x={minX - padding}
+                    y={minY - padding}
+                    width={maxX - minX + padding * 2}
+                    height={maxY - minY + padding * 2}
+                    fill="#3b82f6"
+                    opacity="0.05"
+                    rx="8"
+                  />
+                </>
+              )}
 
               {/* Region label */}
               <text
@@ -301,33 +320,37 @@ export default function GameMapComponent({
         )}
       </svg>
 
-      {/* Legend */}
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-gray-600 border border-white" />
-          <span className="text-gray-400">Unowned</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full border-2 border-yellow-400" />
-          <span className="text-gray-400">Selected</span>
-        </div>
-      </div>
-
-      {/* Player Legend */}
-      <div className="mt-2 space-y-1 border-t border-slate-600 pt-2">
-        <p className="text-xs font-semibold text-gray-400 mb-1">Players</p>
-        <div className="grid grid-cols-2 gap-1">
-          {players.map((player) => (
-            <div key={player.id} className="flex items-center gap-2 text-xs">
-              <div
-                className="w-2 h-2 rounded-full border border-white"
-                style={{ backgroundColor: player.color }}
-              />
-              <span className="text-gray-300">{player.name}</span>
+      {!compact && (
+        <>
+          {/* Legend */}
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-gray-600 border border-white" />
+              <span className="text-gray-400">Unowned</span>
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full border-2 border-yellow-400" />
+              <span className="text-gray-400">Selected</span>
+            </div>
+          </div>
+
+          {/* Player Legend */}
+          <div className="mt-2 space-y-1 border-t border-slate-600 pt-2">
+            <p className="text-xs font-semibold text-gray-400 mb-1">Players</p>
+            <div className="grid grid-cols-2 gap-1">
+              {players.map((player) => (
+                <div key={player.id} className="flex items-center gap-2 text-xs">
+                  <div
+                    className="w-2 h-2 rounded-full border border-white"
+                    style={{ backgroundColor: player.color }}
+                  />
+                  <span className="text-gray-300">{player.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

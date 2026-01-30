@@ -8,12 +8,13 @@
 import { useState } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import { GamePhase } from '@/types/game';
-import RobotBadge from './RobotBadge';
 import GameMapComponent from './GameMap';
 import AuctionMarket from './AuctionMarket';
 import FuelMarket from './FuelMarket';
 import PlayerPanel from './PlayerPanel';
-import { getMapByName } from '@/lib/mapData';
+import RobotBadge from './RobotBadge';
+import BureaucracyPhase from './BureaucracyPhase';
+
 
 export default function GameBoard() {
   const { state, dispatch } = useGame();
@@ -48,16 +49,52 @@ export default function GameBoard() {
   };
 
   const handleBuildCity = () => {
-    if (selectedCities.length > 0) {
-      // For now, just build for the first player (in real game, track current player)
-      const player = state.players[0];
-      dispatch({
-        type: 'BUILD_CITY',
-        payload: {
-          playerId: player.id,
-          region: 'test_region', // Would be determined from selected city
-          cityCount: selectedCities.length,
-        },
+    if (selectedCities.length > 0 && state.gameMap) {
+      const player = state.players.find(p => !p.isRobot);
+      if (!player) return;
+      
+      // Build each selected city
+      selectedCities.forEach(cityId => {
+        const city = state.gameMap?.regions
+          .flatMap(r => r.cities)
+          .find(c => c.id === cityId);
+        
+        if (city) {
+          // Calculate cost using network validation
+          const { isConnectedToNetwork, calculateBuildCost } = require('@/lib/mapData');
+          const isConnected = isConnectedToNetwork(
+            cityId, 
+            player.cities, 
+            state.gameMap!.connections
+          );
+          
+          if (!isConnected) {
+            alert(`Cannot build in ${city.name} - not connected to your network!`);
+            return;
+          }
+          
+          const cost = calculateBuildCost(
+            cityId,
+            player.cities,
+            state.gameMap!.connections,
+            10
+          );
+          
+          if (player.money < cost) {
+            alert(`Not enough money to build in ${city.name}! Cost: $${cost}`);
+            return;
+          }
+          
+          dispatch({
+            type: 'BUILD_CITY',
+            payload: {
+              playerId: player.id,
+              cityId: city.id,
+              cityName: city.name,
+              cost,
+            },
+          });
+        }
       });
       setSelectedCities([]);
     }
@@ -193,6 +230,14 @@ export default function GameBoard() {
               <p className="text-sm text-gray-400">Phase</p>
               <p className="text-lg font-semibold capitalize">{state.phase.replace(/_/g, ' ')}</p>
             </div>
+            {state.currentTurn && (
+              <div className="mt-2 p-3 bg-blue-900/30 rounded border border-blue-500">
+                <p className="text-sm text-gray-400 mb-1">Current Turn</p>
+                <p className="text-lg font-semibold text-blue-300">
+                  {state.players.find(p => p.id === state.currentTurn)?.name}
+                </p>
+              </div>
+            )}
             <div>
               <p className="text-sm text-gray-400">Players</p>
               <p className="text-lg font-semibold">
@@ -234,6 +279,8 @@ export default function GameBoard() {
           <AuctionMarket />
         ) : state.phase === GamePhase.FUEL_PURCHASE ? (
           <FuelMarket />
+        ) : state.phase === GamePhase.BUREAUCRACY ? (
+          <BureaucracyPhase />
         ) : state.gameMap ? (
           <GameMapComponent
             map={state.gameMap}

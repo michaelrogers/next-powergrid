@@ -23,10 +23,12 @@ export type GameAction =
   | { type: 'AWARD_PLANT'; payload: { playerId: string } }
   | { type: 'PASS_AUCTION'; payload: { playerId: string } }
   | { type: 'BUY_FUEL'; payload: { playerId: string; fuelType: FuelType; quantity: number; cost: number } }
-  | { type: 'BUILD_CITY'; payload: { playerId: string; region: string; cityCount: number } }
+  | { type: 'BUILD_CITY'; payload: { playerId: string; cityId: string; cityName: string; cost: number } }
+  | { type: 'DELIVER_POWER'; payload: { playerId: string; citiesSupplied: number; fuelConsumed: Record<FuelType, number>; payment: number } }
   | { type: 'NEXT_PHASE' }
   | { type: 'END_ROUND' }
   | { type: 'RESET_GAME' }
+  | { type: 'SET_CURRENT_TURN'; payload: { playerId: string } }
   | { type: 'ROBOT_TURN'; payload: { playerId: string } };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -61,6 +63,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         id: `game_${Date.now()}`,
         players: action.payload.players,
         phase: GamePhase.AUCTION,
+        currentTurn: action.payload.players[0]?.id,
         map: mapName,
         gameMap,
         availablePowerPlants: powerPlants,
@@ -159,6 +162,64 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         },
       };
       
+      return {
+        ...state,
+        players: updatedPlayers,
+      };
+    }
+
+    case 'BUILD_CITY': {
+      const playerIndex = state.players.findIndex(p => p.id === action.payload.playerId);
+      if (playerIndex === -1) return state;
+      
+      const player = state.players[playerIndex];
+      if (player.money < action.payload.cost) return state;
+      
+      const updatedPlayers = [...state.players];
+      const newCities = new Map(player.cities);
+      const cityCount = newCities.get(action.payload.cityId) || 0;
+      newCities.set(action.payload.cityId, cityCount + 1);
+      
+      updatedPlayers[playerIndex] = {
+        ...player,
+        money: player.money - action.payload.cost,
+        cities: newCities,
+      };
+      
+      return {
+        ...state,
+        players: updatedPlayers,
+      };
+    }
+
+    case 'SET_CURRENT_TURN': {
+      return {
+        ...state,
+        currentTurn: action.payload.playerId,
+      };
+    }
+
+    case 'DELIVER_POWER': {
+      const playerIndex = state.players.findIndex(p => p.id === action.payload.playerId);
+      if (playerIndex === -1) return state;
+
+      const player = state.players[playerIndex];
+      const updatedPlayers = [...state.players];
+      
+      // Deduct fuel consumed
+      const newResources = { ...player.resources };
+      Object.entries(action.payload.fuelConsumed).forEach(([fuelType, amount]) => {
+        const fuel = fuelType as FuelType;
+        newResources[fuel] = Math.max(0, newResources[fuel] - amount);
+      });
+      
+      // Add payment
+      updatedPlayers[playerIndex] = {
+        ...player,
+        money: player.money + action.payload.payment,
+        resources: newResources,
+      };
+
       return {
         ...state,
         players: updatedPlayers,
