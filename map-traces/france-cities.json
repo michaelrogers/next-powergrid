@@ -1,0 +1,55 @@
+{
+  "mapId": "france",
+  "cities": [
+    {
+      "id": "paris",
+      "name": "Paris",
+      "regionId": "paris",
+      "x": 40,
+      "y": 35
+    },
+    {
+      "id": "orleans",
+      "name": "Orléans",
+      "regionId": "paris",
+      "x": 42,
+      "y": 42
+    },
+    {
+      "id": "lille",
+      "name": "Lille",
+      "regionId": "north",
+      "x": 42,
+      "y": 18
+    },
+    {
+      "id": "toulouse",
+      "name": "Toulouse",
+      "regionId": "south",
+      "x": 38,
+      "y": 72
+    },
+    {
+      "id": "marseille",
+      "name": "Marseille",
+      "regionId": "south",
+      "x": 58,
+      "y": 70
+    },
+    {
+      "id": "strasbourg",
+      "name": "Strasbourg",
+      "regionId": "east",
+      "x": 68,
+      "y": 40
+    },
+    {
+      "id": "bordeaux",
+      "name": "Bordeaux",
+      "regionId": "west",
+      "x": 25,
+      "y": 62
+    }
+  ],
+  "lastUpdated": "2026-01-31T03:00:48.749Z"
+}
