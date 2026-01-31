@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 
 type Payload = {
   mapId?: string;
@@ -9,7 +8,6 @@ type Payload = {
   path: string;
   points?: Array<{ x: number; y: number }>;
   cities?: Array<{ id: string; name: string; x: number; y: number; region: string }>;
-  branchBase?: string;
 };
 
 export async function POST(req: Request) {
@@ -24,8 +22,8 @@ export async function POST(req: Request) {
     if (!fs.existsSync(tracesDir)) fs.mkdirSync(tracesDir);
 
     const mapId = payload.mapId || 'germany';
-    const ts = new Date().toISOString().replace(/[:.]/g, '-');
-    const fileName = `${mapId}-${payload.regionId}-${ts}.json`;
+    // Use consistent filename - overwrite instead of creating new file
+    const fileName = `${mapId}-${payload.regionId}-trace.json`;
     const filePath = path.join(tracesDir, fileName);
 
     const content = {
@@ -34,33 +32,14 @@ export async function POST(req: Request) {
       path: payload.path,
       points: payload.points || [],
       cities: payload.cities || [],
-      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     fs.writeFileSync(filePath, JSON.stringify(content, null, 2), 'utf8');
 
-    // Create branch and commit
-    const branchBase = payload.branchBase || `trace/${mapId}-${payload.regionId}`;
-    // ensure unique branch name
-    const branchName = `${branchBase}-${ts}`;
-
-    try {
-      execSync(`git checkout -b ${branchName}`, { stdio: 'ignore' });
-    } catch (err) {
-      // If branch exists or checkout fails, try to continue
-    }
-
-    execSync(`git add ${filePath}`, { stdio: 'ignore' });
-    execSync(`git commit -m "trace(${mapId}): add ${payload.regionId} outline"`, { stdio: 'ignore' });
-    // Try to push; if remote doesn't exist this will fail but commit will be local
-    try {
-      execSync(`git push -u origin ${branchName}`, { stdio: 'ignore' });
-    } catch (err) {
-      // ignore push errors
-    }
-
-    return NextResponse.json({ ok: true, file: `map-traces/${fileName}`, branch: branchName });
+    return NextResponse.json({ ok: true, file: `map-traces/${fileName}` });
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: String(err?.message || err) }, { status: 500 });
   }
 }
+

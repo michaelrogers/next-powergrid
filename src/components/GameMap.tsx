@@ -47,7 +47,7 @@ export default function GameMapComponent({
           if (!cancelled) setCountryOutlinePath(null);
           return;
         }
-        const path = buildOutlinePath(selected);
+        const path = buildOutlinePath(selected, map.id);
         if (!cancelled) setCountryOutlinePath(path);
       } catch (err) {
         if (!cancelled) setCountryOutlinePath(null);

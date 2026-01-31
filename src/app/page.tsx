@@ -55,9 +55,16 @@ function GameSetup() {
     <main className="flex min-h-screen w-full flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-6">
       <div className="max-w-md w-full bg-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700">
         <h1 className="text-4xl font-bold text-white mb-2 text-center">Power Grid</h1>
-        <p className="text-gray-400 text-center mb-8">Recharged - Build your power empire</p>
-        <div className="text-center mb-4">
-          <Link href="/devtools" className="text-sm text-indigo-400">Devtools — map tracing</Link>
+        <p className="text-gray-400 text-center mb-6">Recharged - Build your power empire</p>
+        
+        {/* Development Tools Links */}
+        <div className="flex justify-center gap-4 mb-6 text-sm">
+          <Link href="/editor" className="text-emerald-400 hover:text-emerald-300 transition-colors">
+            🗺️ Map Editor
+          </Link>
+          <Link href="/devtools" className="text-gray-500 hover:text-gray-400 transition-colors line-through" title="Deprecated - use Map Editor">
+            Devtools (old)
+          </Link>
         </div>
 
         <div className="space-y-6">

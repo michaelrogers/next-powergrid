@@ -1,6 +1,6 @@
 # Power Grid - Recharged
 
-A digital implementation of the classic board game **Power Grid** built with Next.js, React, and TypeScript.
+An implementation of the classic board game **Power Grid** built with Next.js, React, and TypeScript.
 
 ## Project Overview
 
