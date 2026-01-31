@@ -19,15 +19,15 @@
       "id": "lille",
       "name": "Lille",
       "regionId": "north",
-      "x": 42,
-      "y": 18
+      "x": 53.59064923585767,
+      "y": 22.728405751469353
     },
     {
       "id": "toulouse",
       "name": "Toulouse",
       "regionId": "south",
-      "x": 38,
-      "y": 72
+      "x": 46.12760891879562,
+      "y": 70.06454659949623
     },
     {
       "id": "marseille",
@@ -47,9 +47,60 @@
       "id": "bordeaux",
       "name": "Bordeaux",
       "regionId": "west",
-      "x": 25,
-      "y": 62
+      "x": 48.872676208941606,
+      "y": 65.01987562972292
     }
   ],
-  "lastUpdated": "2026-01-31T03:00:48.749Z"
+  "regions": [
+    {
+      "id": "nord",
+      "name": "Nord",
+      "costMultiplier": 1.1,
+      "regionColor": "#60a5fa",
+      "cityIds": [
+        "amiens",
+        "lille"
+      ]
+    },
+    {
+      "id": "paris",
+      "name": "Paris",
+      "costMultiplier": 1.2,
+      "regionColor": "#34d399",
+      "cityIds": [
+        "paris",
+        "orleans"
+      ]
+    },
+    {
+      "id": "east",
+      "name": "Est",
+      "costMultiplier": 1.05,
+      "regionColor": "#fbbf24",
+      "cityIds": [
+        "strasbourg"
+      ]
+    },
+    {
+      "id": "west",
+      "name": "Ouest",
+      "costMultiplier": 0.95,
+      "regionColor": "#f87171",
+      "cityIds": [
+        "bordeaux",
+        "toulouse"
+      ]
+    },
+    {
+      "id": "south",
+      "name": "Midi",
+      "costMultiplier": 1,
+      "regionColor": "#a78bfa",
+      "cityIds": [
+        "lyon",
+        "marseille"
+      ]
+    }
+  ],
+  "lastUpdated": "2026-01-31T21:44:09.450Z"
 }
