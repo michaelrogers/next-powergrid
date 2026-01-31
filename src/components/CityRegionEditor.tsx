@@ -10,6 +10,9 @@ import type { GeoJson } from '@/lib/geojsonOutline';
 
 const clamp = (v: number, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 
+const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const isValidSlug = (value: string) => slugPattern.test(value);
+
 const slugifyId = (value: string) =>
   value
     .toLowerCase()
@@ -40,12 +43,18 @@ export default function CityRegionEditor({ mapId }: Props) {
   const [connections, setConnections] = useState(map?.connections || []);
   const [newCityName, setNewCityName] = useState('');
   const [newCityId, setNewCityId] = useState('');
+  const [newCityRegionId, setNewCityRegionId] = useState('');
   const [newRegionName, setNewRegionName] = useState('');
   const [newRegionColor, setNewRegionColor] = useState('#60a5fa');
   const [showConnectionCosts, setShowConnectionCosts] = useState(true);
   const [newConnectionA, setNewConnectionA] = useState('');
   const [newConnectionB, setNewConnectionB] = useState('');
   const [newConnectionCost, setNewConnectionCost] = useState('');
+  const [newRegionId, setNewRegionId] = useState('');
+  const [isNewCityIdManual, setIsNewCityIdManual] = useState(false);
+  const [isNewRegionIdManual, setIsNewRegionIdManual] = useState(false);
+  const [selectedConnectionIdx, setSelectedConnectionIdx] = useState<number | null>(null);
+  const connectionInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   
   // Sync cities and regions when map changes
   useEffect(() => {
@@ -100,6 +109,10 @@ export default function CityRegionEditor({ mapId }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [boundaryPolygon, setBoundaryPolygon] = useState<Array<{x: number, y: number}> | null>(null);
   const [citiesOutsideBorder, setCitiesOutsideBorder] = useState<Set<string>>(new Set());
+  const cityIdManualRef = useRef<Set<string>>(new Set());
+  const regionIdManualRef = useRef<Set<string>>(new Set());
+  const regionStableKeyRef = useRef<Map<string, string>>(new Map());
+  const stableKeyCounterRef = useRef(0);
   
   // Voronoi regions - computed asynchronously to avoid blocking render
   const [renderedRegions, setRenderedRegions] = useState<ReturnType<typeof renderRegionsWithVoronoi>>([]);
@@ -217,6 +230,34 @@ export default function CityRegionEditor({ mapId }: Props) {
     return map;
   }, [regions]);
 
+  const cityIdCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    cities.forEach(city => {
+      if (!city.id) return;
+      counts.set(city.id, (counts.get(city.id) || 0) + 1);
+    });
+    return counts;
+  }, [cities]);
+
+  const regionIdCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    regions.forEach(region => {
+      if (!region.id) return;
+      counts.set(region.id, (counts.get(region.id) || 0) + 1);
+    });
+    return counts;
+  }, [regions]);
+
+  const invalidCities = useMemo(
+    () => cities.filter(city => !city.id || !isValidSlug(city.id) || (cityIdCounts.get(city.id) || 0) > 1),
+    [cities, cityIdCounts]
+  );
+
+  const invalidRegions = useMemo(
+    () => regions.filter(region => !region.id || !isValidSlug(region.id) || (regionIdCounts.get(region.id) || 0) > 1),
+    [regions, regionIdCounts]
+  );
+
   const cityById = useMemo(() => {
     return new Map(cities.map(city => [city.id, city] as const));
   }, [cities]);
@@ -263,9 +304,10 @@ export default function CityRegionEditor({ mapId }: Props) {
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     // Only get bounding rect when actually needed (panning or dragging)
     if (isPanning && panStart.current && spacePressed) {
+      const start = panStart.current;
       setPan(prev => ({
-        x: prev.x + (e.clientX - panStart.current!.x),
-        y: prev.y + (e.clientY - panStart.current!.y),
+        x: prev.x + (e.clientX - start.x),
+        y: prev.y + (e.clientY - start.y),
       }));
       panStart.current = { x: e.clientX, y: e.clientY };
       return;
@@ -303,7 +345,11 @@ export default function CityRegionEditor({ mapId }: Props) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      // Don't capture space if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      
+      if (e.code === 'Space' && !isInputField) {
         e.preventDefault();
         setSpacePressed(true);
       }
@@ -312,7 +358,12 @@ export default function CityRegionEditor({ mapId }: Props) {
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') setSpacePressed(false);
+      const target = e.target as HTMLElement;
+      const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      
+      if (e.code === 'Space' && !isInputField) {
+        setSpacePressed(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
@@ -340,6 +391,7 @@ export default function CityRegionEditor({ mapId }: Props) {
     const existingIds = new Set(cities.map(c => c.id));
     const baseId = slugifyId(newCityId || trimmedName || 'city');
     const id = ensureUniqueId(baseId || `city-${cities.length + 1}`, existingIds);
+    if (!isValidSlug(id)) return;
 
     const newCity = {
       id,
@@ -350,17 +402,52 @@ export default function CityRegionEditor({ mapId }: Props) {
 
     setCities(prev => [...prev, newCity]);
     setSelectedCityId(id);
+    if (newCityRegionId) {
+      assignCityToRegion(id, newCityRegionId);
+    }
     setNewCityName('');
     setNewCityId('');
+    setNewCityRegionId('');
+    setIsNewCityIdManual(false);
   };
 
   const updateCityName = (cityId: string, name: string) => {
     setCities(prev => prev.map(c => c.id === cityId ? { ...c, name } : c));
+    if (!cityIdManualRef.current.has(cityId)) {
+      const nextId = slugifyId(name);
+      if (nextId && nextId !== cityId) {
+        updateCityId(cityId, nextId, false);
+      }
+    }
+  };
+
+  const updateCityId = (oldId: string, nextId: string, markManual = true) => {
+    const trimmed = nextId.trim();
+    if (!trimmed) {
+      setCities(prev => prev.map(c => c.id === oldId ? { ...c, id: '' } : c));
+      return;
+    }
+    setCities(prev => prev.map(c => c.id === oldId ? { ...c, id: trimmed } : c));
+    setRegions(prev => prev.map(r => ({ ...r, cityIds: r.cityIds.map(id => id === oldId ? trimmed : id) })));
+    setConnections(prev => prev.map(c => ({
+      ...c,
+      cityA: c.cityA === oldId ? trimmed : c.cityA,
+      cityB: c.cityB === oldId ? trimmed : c.cityB,
+    })));
+    if (selectedCityId === oldId) setSelectedCityId(trimmed);
+    if (markManual) {
+      cityIdManualRef.current.delete(oldId);
+      cityIdManualRef.current.add(trimmed);
+    } else if (cityIdManualRef.current.has(oldId)) {
+      cityIdManualRef.current.delete(oldId);
+      cityIdManualRef.current.add(trimmed);
+    }
   };
 
   const deleteCity = (cityId: string) => {
     setCities(prev => prev.filter(c => c.id !== cityId));
     setRegions(prev => prev.map(r => ({ ...r, cityIds: r.cityIds.filter(id => id !== cityId) })));
+    setConnections(prev => prev.filter(c => c.cityA !== cityId && c.cityB !== cityId));
     if (selectedCityId === cityId) setSelectedCityId(null);
   };
 
@@ -369,8 +456,9 @@ export default function CityRegionEditor({ mapId }: Props) {
     if (!trimmedName) return;
 
     const existingIds = new Set(regions.map(r => r.id));
-    const baseId = slugifyId(trimmedName || 'region');
+    const baseId = slugifyId(newRegionId || trimmedName || 'region');
     const id = ensureUniqueId(baseId || `region-${regions.length + 1}`, existingIds);
+    if (!isValidSlug(id)) return;
 
     const region = {
       id,
@@ -379,12 +467,48 @@ export default function CityRegionEditor({ mapId }: Props) {
       cityIds: [],
     };
 
+    // Assign stable key for new region
+    const stableKey = `region-key-${stableKeyCounterRef.current++}`;
+    regionStableKeyRef.current.set(id, stableKey);
+
     setRegions(prev => [...prev, region]);
     setNewRegionName('');
+    setNewRegionId('');
+    setIsNewRegionIdManual(false);
   };
 
   const updateRegionName = (regionId: string, name: string) => {
     setRegions(prev => prev.map(r => r.id === regionId ? { ...r, name } : r));
+    if (!regionIdManualRef.current.has(regionId)) {
+      const nextId = slugifyId(name);
+      if (nextId && nextId !== regionId) {
+        updateRegionId(regionId, nextId, false);
+      }
+    }
+  };
+
+  const updateRegionId = (oldId: string, nextId: string, markManual = true) => {
+    const trimmed = nextId.trim();
+    if (!trimmed) {
+      setRegions(prev => prev.map(r => r.id === oldId ? { ...r, id: '' } : r));
+      return;
+    }
+    
+    // Transfer stable key from old ID to new ID
+    const stableKey = regionStableKeyRef.current.get(oldId);
+    if (stableKey && trimmed !== oldId) {
+      regionStableKeyRef.current.delete(oldId);
+      regionStableKeyRef.current.set(trimmed, stableKey);
+    }
+    
+    setRegions(prev => prev.map(r => r.id === oldId ? { ...r, id: trimmed } : r));
+    if (markManual) {
+      regionIdManualRef.current.delete(oldId);
+      regionIdManualRef.current.add(trimmed);
+    } else if (regionIdManualRef.current.has(oldId)) {
+      regionIdManualRef.current.delete(oldId);
+      regionIdManualRef.current.add(trimmed);
+    }
   };
 
   const updateRegionColor = (regionId: string, color: string) => {
@@ -428,6 +552,10 @@ export default function CityRegionEditor({ mapId }: Props) {
 
   // Save cities to static file
   const saveCities = async () => {
+    if (invalidCities.length > 0 || invalidRegions.length > 0) {
+      alert('Fix invalid or duplicate IDs before saving.');
+      return;
+    }
     try {
       const resp = await fetch('/api/save-cities', {
         method: 'POST',
@@ -538,7 +666,7 @@ export default function CityRegionEditor({ mapId }: Props) {
                 )}
 
                 {/* Region backgrounds with Voronoi boundaries */}
-                {renderedRegions.map((r, idx) => (
+                {countryOutlinePath && renderedRegions.map((r, idx) => (
                   <g key={`region-${idx}`}>
                     {/* Individual Voronoi cells for this region */}
                     {r.cells.map((cell, cellIdx) => (
@@ -575,7 +703,7 @@ export default function CityRegionEditor({ mapId }: Props) {
 
               {/* Region labels (unclipped so they can extend past border) */}
               <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
-                {renderedRegions.map((r, idx) => (
+                {countryOutlinePath && renderedRegions.map((r, idx) => (
                   <text
                     key={`region-label-${idx}`}
                     x={r.centroid.x}
@@ -635,16 +763,39 @@ export default function CityRegionEditor({ mapId }: Props) {
                         strokeDasharray="5 3"
                         vectorEffect="non-scaling-stroke"
                       />
-                      {showConnectionCosts && typeof connection.cost === 'number' && (
-                        <g>
+                      {showConnectionCosts && typeof connection.cost === 'number' && connection.cost !== 0 && (
+                        <g
+                          style={{ cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedConnectionIdx(idx);
+                            // Focus the input in the side menu
+                            setTimeout(() => {
+                              const input = connectionInputRefs.current.get(idx);
+                              if (input) {
+                                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                input.focus();
+                                input.select();
+                              }
+                            }, 100);
+                          }}
+                          className="group"
+                        >
                           <circle
                             cx={midX}
                             cy={midY}
-                            r={10}
-                            fill="#0f172a"
+                            r={6}
+                            fill={selectedConnectionIdx === idx ? '#3b82f6' : '#0f172a'}
                             fillOpacity={0.75}
-                            stroke="#e2e8f0"
-                            strokeWidth={1.2}
+                            stroke={selectedConnectionIdx === idx ? '#60a5fa' : '#e2e8f0'}
+                            strokeWidth={selectedConnectionIdx === idx ? 2 : 1.2}
+                            style={{ transition: 'r 0.2s ease', vectorEffect: 'non-scaling-stroke' }}
+                            onMouseEnter={(e) => {
+                              (e.target as SVGCircleElement).setAttribute('r', '14');
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.target as SVGCircleElement).setAttribute('r', '6');
+                            }}
                           />
                           <text
                             x={midX}
@@ -652,12 +803,15 @@ export default function CityRegionEditor({ mapId }: Props) {
                             textAnchor="middle"
                             dominantBaseline="middle"
                             fill="#e2e8f0"
-                            fontSize="11"
+                            fontSize="9"
                             fontWeight="bold"
                             style={{ pointerEvents: 'none', userSelect: 'none' }}
                           >
                             {connection.cost}
                           </text>
+                          <title>
+                            {`${cityById.get(connection.cityA)?.name || connection.cityA} ↔ ${cityById.get(connection.cityB)?.name || connection.cityB}\nCost: ${connection.cost}`}
+                          </title>
                         </g>
                       )}
                     </g>
@@ -744,16 +898,57 @@ export default function CityRegionEditor({ mapId }: Props) {
               <div className="space-y-2">
                 <input
                   value={newCityName}
-                  onChange={(e) => setNewCityName(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setNewCityName(next);
+                    if (!isNewCityIdManual) {
+                      setNewCityId(slugifyId(next));
+                    }
+                  }}
                   placeholder="City name"
                   className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
                 />
                 <input
                   value={newCityId}
-                  onChange={(e) => setNewCityId(e.target.value)}
-                  placeholder="Optional city id (slug)"
+                  onChange={(e) => {
+                    setNewCityId(e.target.value);
+                    setIsNewCityIdManual(true);
+                  }}
+                  placeholder="City id (slug)"
                   className="w-full px-2 py-1 bg-slate-600 text-white rounded text-xs"
                 />
+                <div className="text-[10px] text-gray-400">
+                  Use lowercase letters, numbers, and hyphens.
+                </div>
+                <div>
+                  <label className="text-xs text-gray-300 block mb-1">Assign to Region</label>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded"
+                      style={{
+                        backgroundColor:
+                          regions.find(r => r.id === newCityRegionId)?.regionColor || '#475569',
+                      }}
+                      title="Selected region color"
+                    />
+                    <select
+                      value={newCityRegionId}
+                      onChange={(e) => setNewCityRegionId(e.target.value)}
+                      className="flex-1 px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                    >
+                      <option value="">-- No Region --</option>
+                      {regions.map(r => (
+                        <option
+                          key={r.id}
+                          value={r.id}
+                          style={{ color: r.regionColor }}
+                        >
+                          ● {r.name} ({r.cityIds.length})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <button
                   className="w-full px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
                   onClick={addCity}
@@ -793,7 +988,15 @@ export default function CityRegionEditor({ mapId }: Props) {
                           onChange={(e) => updateCityName(city.id, e.target.value)}
                           className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
                         />
-                        <div className="text-[10px] text-gray-400 mt-1">ID: {city.id}</div>
+                        <label className="text-xs text-gray-300 block mb-1 mt-3">City ID (slug)</label>
+                        <input
+                          value={city.id}
+                          onChange={(e) => updateCityId(city.id, e.target.value, true)}
+                          className={`w-full px-2 py-1 rounded text-sm ${isValidSlug(city.id) ? 'bg-slate-600 text-white' : 'bg-red-900/40 text-red-200 border border-red-600/50'}`}
+                        />
+                        {!isValidSlug(city.id) && (
+                          <div className="text-[10px] text-red-300 mt-1">Invalid slug format.</div>
+                        )}
                       </div>
                       {isOutsideBorder && (
                         <div className="bg-red-900/30 border border-red-500/50 rounded p-2 mb-3 text-xs">
@@ -838,6 +1041,109 @@ export default function CityRegionEditor({ mapId }: Props) {
                           </div>
                         </div>
                       )}
+
+                      {/* City Connections */}
+                      {(() => {
+                        const cityConnections = connections.filter(c => c.cityA === selectedCityId || c.cityB === selectedCityId);
+                        return (
+                          <div className="mt-4 pt-4 border-t border-slate-600">
+                            <div className="text-sm text-gray-300 font-semibold mb-2">Connections ({cityConnections.length})</div>
+                            {cityConnections.length > 0 && (
+                              <div className="space-y-2 mb-3">
+                                {cityConnections.map((conn) => {
+                                  const otherCityId = conn.cityA === selectedCityId ? conn.cityB : conn.cityA;
+                                  const otherCity = cities.find(c => c.id === otherCityId);
+                                  const connectionIdx = connections.findIndex(c => c.cityA === conn.cityA && c.cityB === conn.cityB);
+                                  return (
+                                    <div key={`${conn.cityA}-${conn.cityB}`} className="bg-slate-600 p-2 rounded text-xs">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-gray-200">
+                                          ↔ {otherCity?.name || otherCityId}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={typeof conn.cost === 'number' ? conn.cost : ''}
+                                            onChange={(e) => {
+                                              const raw = e.target.value;
+                                              if (raw === '') {
+                                                updateConnectionCost(connectionIdx, null);
+                                              } else {
+                                                const next = Number.parseFloat(raw);
+                                                updateConnectionCost(connectionIdx, Number.isNaN(next) ? null : next);
+                                              }
+                                            }}
+                                            className="w-12 px-1 py-0.5 bg-slate-700 text-yellow-300 rounded text-xs font-semibold border border-slate-500"
+                                          />
+                                          <button
+                                            className="px-1.5 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                                            onClick={() => deleteConnection(connectionIdx)}
+                                          >
+                                            ✕
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            
+                            {/* Add Connection Form */}
+                            <div className="bg-slate-700 p-2 rounded text-xs">
+                              <div className="text-gray-300 font-semibold mb-2">Add Connection</div>
+                              <div className="space-y-2">
+                                <select
+                                  value={newConnectionB}
+                                  onChange={(e) => setNewConnectionB(e.target.value)}
+                                  className="w-full px-2 py-1 bg-slate-600 text-white rounded text-xs"
+                                >
+                                  <option value="">-- Select City --</option>
+                                  {cities
+                                    .filter(c => c.id !== selectedCityId && !cityConnections.some(conn => (conn.cityA === selectedCityId && conn.cityB === c.id) || (conn.cityB === selectedCityId && conn.cityA === c.id)))
+                                    .sort((a, b) => a.name.localeCompare(b.name))
+                                    .map(c => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.name}
+                                      </option>
+                                    ))}
+                                </select>
+                                <div className="flex gap-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="Cost"
+                                    value={newConnectionCost}
+                                    onChange={(e) => setNewConnectionCost(e.target.value)}
+                                    className="flex-1 px-2 py-1 bg-slate-600 text-white rounded text-xs"
+                                  />
+                                  <button
+                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs disabled:opacity-50"
+                                    onClick={() => {
+                                      if (!newConnectionB) return;
+                                      const cost = newConnectionCost ? Number.parseFloat(newConnectionCost) : null;
+                                      setConnections(prev => [
+                                        ...prev,
+                                        {
+                                          cityA: selectedCityId,
+                                          cityB: newConnectionB,
+                                          cost: Number.isNaN(cost) ? undefined : cost,
+                                        }
+                                      ]);
+                                      setNewConnectionB('');
+                                      setNewConnectionCost('');
+                                    }}
+                                    disabled={!newConnectionB}
+                                  >
+                                    + Add
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   );
                 })()}
@@ -876,10 +1182,38 @@ export default function CityRegionEditor({ mapId }: Props) {
               <div className="space-y-2">
                 <input
                   value={newRegionName}
-                  onChange={(e) => setNewRegionName(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setNewRegionName(next);
+                    if (!isNewRegionIdManual) {
+                      setNewRegionId(slugifyId(next));
+                    }
+                  }}
                   placeholder="Region name"
                   className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
                 />
+                <input
+                  value={newRegionId}
+                  onChange={(e) => {
+                    setNewRegionId(e.target.value);
+                    setIsNewRegionIdManual(true);
+                  }}
+                  placeholder="Region id (slug)"
+                  className="w-full px-2 py-1 bg-slate-600 text-white rounded text-xs"
+                />
+                <button
+                  type="button"
+                  className="w-full px-2 py-1 bg-slate-600 hover:bg-slate-500 text-white rounded text-xs"
+                  onClick={() => {
+                    setNewRegionId(slugifyId(newRegionName));
+                    setIsNewRegionIdManual(false);
+                  }}
+                >
+                  Auto-generate from name
+                </button>
+                <div className="text-[10px] text-gray-400">
+                  Use lowercase letters, numbers, and hyphens.
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -898,8 +1232,15 @@ export default function CityRegionEditor({ mapId }: Props) {
               </div>
             </div>
             <div className="space-y-2">
-              {regions.map(region => (
-                <div key={region.id} className="bg-slate-700 p-3 rounded text-sm">
+              {regions.map(region => {
+                // Get or create stable key for this region
+                if (!regionStableKeyRef.current.has(region.id)) {
+                  regionStableKeyRef.current.set(region.id, `region-key-${stableKeyCounterRef.current++}`);
+                }
+                const stableKey = regionStableKeyRef.current.get(region.id)!;
+                
+                return (
+                <div key={stableKey} className="bg-slate-700 p-3 rounded text-sm">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <input
@@ -923,7 +1264,26 @@ export default function CityRegionEditor({ mapId }: Props) {
                       Delete
                     </button>
                   </div>
-                  <div className="text-[10px] text-gray-400 mb-2">ID: {region.id}</div>
+                  <div className="mb-2">
+                    <label className="text-xs text-gray-300 block mb-1">Region ID (slug)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={region.id}
+                        onChange={(e) => updateRegionId(region.id, e.target.value, true)}
+                        className={`flex-1 px-2 py-1 rounded text-xs ${isValidSlug(region.id) ? 'bg-slate-600 text-white' : 'bg-red-900/40 text-red-200 border border-red-600/50'}`}
+                      />
+                      <button
+                        type="button"
+                        className="px-2 py-1 bg-slate-600 hover:bg-slate-500 text-white rounded text-xs"
+                        onClick={() => updateRegionId(region.id, slugifyId(region.name), false)}
+                      >
+                        Auto
+                      </button>
+                    </div>
+                    {!isValidSlug(region.id) && (
+                      <div className="text-[10px] text-red-300 mt-1">Invalid slug format.</div>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-300 space-y-1">
                     {region.cityIds.map(cityId => {
                       const city = cities.find(c => c.id === cityId);
@@ -935,7 +1295,8 @@ export default function CityRegionEditor({ mapId }: Props) {
                     })}
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
 
@@ -987,7 +1348,12 @@ export default function CityRegionEditor({ mapId }: Props) {
                 const cityB = cityById.get(connection.cityB);
                 const label = `${cityA?.name || connection.cityA} ↔ ${cityB?.name || connection.cityB}`;
                 return (
-                  <div key={`connection-row-${idx}`} className="bg-slate-700 p-3 rounded text-sm">
+                  <div 
+                    key={`connection-row-${idx}`} 
+                    className={`p-3 rounded text-sm transition-colors ${
+                      selectedConnectionIdx === idx ? 'bg-blue-900/40 border border-blue-500' : 'bg-slate-700'
+                    }`}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-xs text-gray-200">{label}</div>
                       <button
@@ -1000,6 +1366,13 @@ export default function CityRegionEditor({ mapId }: Props) {
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-gray-300">Cost</label>
                       <input
+                        ref={(el) => {
+                          if (el) {
+                            connectionInputRefs.current.set(idx, el);
+                          } else {
+                            connectionInputRefs.current.delete(idx);
+                          }
+                        }}
                         type="number"
                         min="0"
                         value={typeof connection.cost === 'number' ? connection.cost : ''}
@@ -1012,6 +1385,8 @@ export default function CityRegionEditor({ mapId }: Props) {
                             updateConnectionCost(idx, Number.isNaN(next) ? null : next);
                           }
                         }}
+                        onFocus={() => setSelectedConnectionIdx(idx)}
+                        onBlur={() => setSelectedConnectionIdx(null)}
                         className="w-24 px-2 py-1 bg-slate-600 text-white rounded text-xs"
                       />
                       <span className="text-[10px] text-gray-400">{connection.cityA} ↔ {connection.cityB}</span>
@@ -1023,9 +1398,15 @@ export default function CityRegionEditor({ mapId }: Props) {
           </div>
 
           {/* Save Button */}
+          {(invalidCities.length > 0 || invalidRegions.length > 0) && (
+            <div className="bg-red-900/30 border border-red-500/50 rounded p-3 text-xs text-red-200">
+              Fix invalid or duplicate IDs before saving.
+            </div>
+          )}
           <button
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded mt-auto font-semibold"
+            className={`px-4 py-2 rounded mt-auto font-semibold ${invalidCities.length > 0 || invalidRegions.length > 0 ? 'bg-slate-600 text-slate-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}
             onClick={saveCities}
+            disabled={invalidCities.length > 0 || invalidRegions.length > 0}
           >
             💾 Save Cities
           </button>
