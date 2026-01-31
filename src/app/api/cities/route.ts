@@ -5,14 +5,22 @@ import path from 'path';
 type CityData = {
   id: string;
   name: string;
-  regionId: string;
+  regionId?: string;
   x: number;
   y: number;
+};
+
+type RegionData = {
+  id: string;
+  name: string;
+  regionColor: string;
+  cityIds: string[];
 };
 
 type CitiesPayload = {
   mapId: string;
   cities: CityData[];
+  regions?: RegionData[];
   lastUpdated?: string;
 };
 

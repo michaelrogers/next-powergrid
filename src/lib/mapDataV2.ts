@@ -9,7 +9,6 @@
  */
 
 export interface CityDefinition {
-  id: string;
   name: string;
   x: number; // percentage 0-100
   y: number; // percentage 0-100
@@ -18,7 +17,6 @@ export interface CityDefinition {
 export interface RegionDefinition {
   id: string;
   name: string;
-  costMultiplier: number;
   regionColor: string;
   cityIds: string[]; // Cities that seed this region's Voronoi cell
 }
@@ -72,37 +70,29 @@ export const USA_MAP_V2: GameMapV2 = {
   ],
   regions: [
     {
-      id: 'northeast',
       name: 'Northeast',
-      costMultiplier: 1.2,
       regionColor: '#60a5fa',
       cityIds: ['boston', 'newyork', 'buffalo', 'philadelphia', 'pittsburgh', 'washington', 'norfolk'],
     },
     {
       id: 'midwest',
-      name: 'Midwest',
-      costMultiplier: 1.0,
       regionColor: '#f59e0b',
       cityIds: ['minneapolis', 'chicago', 'detroit', 'stlouis'],
     },
     {
       id: 'south',
       name: 'South',
-      costMultiplier: 0.9,
       regionColor: '#10b981',
       cityIds: ['atlanta', 'houston', 'dallas', 'neworleans'],
     },
     {
       id: 'west',
-      name: 'West',
-      costMultiplier: 1.1,
       regionColor: '#ef4444',
       cityIds: ['seattle', 'portland', 'sanfrancisco', 'losangeles', 'lasvegas', 'denver'],
     },
   ],
   connections: [
     // Northeast connections
-    { cityA: 'boston', cityB: 'newyork' },
     { cityA: 'newyork', cityB: 'philadelphia' },
     { cityA: 'philadelphia', cityB: 'washington' },
     { cityA: 'pittsburgh', cityB: 'philadelphia' },
@@ -137,7 +127,6 @@ export const USA_MAP_V2: GameMapV2 = {
   ],
 };
 
-// Germany Map - V2
 export const GERMANY_MAP_V2: GameMapV2 = {
   id: 'germany',
   name: 'Germany',
@@ -168,7 +157,6 @@ export const GERMANY_MAP_V2: GameMapV2 = {
   ],
   regions: [
     {
-      id: 'north',
       name: 'North',
       costMultiplier: 1.0,
       regionColor: '#60a5fa',
@@ -176,14 +164,12 @@ export const GERMANY_MAP_V2: GameMapV2 = {
     },
     {
       id: 'west',
-      name: 'West',
       costMultiplier: 1.1,
       regionColor: '#ef4444',
       cityIds: ['cologne', 'aachen', 'koblenz'],
     },
     {
       id: 'central',
-      name: 'Central',
       costMultiplier: 1.05,
       regionColor: '#10b981',
       cityIds: ['frankfurt'],

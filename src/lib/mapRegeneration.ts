@@ -9,7 +9,6 @@ import type { Point, VoronoiDiagram } from './voronoi';
 export interface RegionDefinition {
   id: string;
   name: string;
-  costMultiplier: number;
   regionColor: string;
   cities: Array<{ id: string; name: string; x: number; y: number; region: string }>;
   polygon: Point[];
@@ -84,7 +83,6 @@ export function regenerateMapWithVoronoi(
     regions.push({
       id: `region_${regionIdx}`,
       name: regionNames[regionIdx],
-      costMultiplier: 1.0,
       regionColor: regionColors[regionIdx],
       cities: regionCities,
       polygon,
