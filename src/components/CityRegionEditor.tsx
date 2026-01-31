@@ -37,16 +37,22 @@ export default function CityRegionEditor({ mapId }: Props) {
   // State
   const [cities, setCities] = useState(map?.cities || []);
   const [regions, setRegions] = useState(map?.regions || []);
+  const [connections, setConnections] = useState(map?.connections || []);
   const [newCityName, setNewCityName] = useState('');
   const [newCityId, setNewCityId] = useState('');
   const [newRegionName, setNewRegionName] = useState('');
   const [newRegionColor, setNewRegionColor] = useState('#60a5fa');
+  const [showConnectionCosts, setShowConnectionCosts] = useState(true);
+  const [newConnectionA, setNewConnectionA] = useState('');
+  const [newConnectionB, setNewConnectionB] = useState('');
+  const [newConnectionCost, setNewConnectionCost] = useState('');
   
   // Sync cities and regions when map changes
   useEffect(() => {
     if (map) {
       setCities(map.cities);
       setRegions(map.regions);
+      setConnections(map.connections);
     }
   }, [map]);
 
@@ -64,6 +70,9 @@ export default function CityRegionEditor({ mapId }: Props) {
           setCities(payload.data.cities);
           if (payload.data?.regions?.length) {
             setRegions(payload.data.regions);
+          }
+          if (payload.data?.connections?.length) {
+            setConnections(payload.data.connections);
           }
         }
       } catch (err) {
@@ -207,6 +216,10 @@ export default function CityRegionEditor({ mapId }: Props) {
     });
     return map;
   }, [regions]);
+
+  const cityById = useMemo(() => {
+    return new Map(cities.map(city => [city.id, city] as const));
+  }, [cities]);
 
   const getCityRegion = useCallback((cityId: string): RegionDefinition | undefined => {
     return cityRegionMap.get(cityId);
@@ -382,13 +395,44 @@ export default function CityRegionEditor({ mapId }: Props) {
     setRegions(prev => prev.filter(r => r.id !== regionId));
   };
 
+  const updateConnectionCost = (index: number, cost: number | null) => {
+    setConnections(prev => prev.map((connection, idx) => {
+      if (idx !== index) return connection;
+      if (cost === null) {
+        const { cost: _cost, ...rest } = connection;
+        return rest;
+      }
+      return { ...connection, cost };
+    }));
+  };
+
+  const addConnection = () => {
+    if (!newConnectionA || !newConnectionB || newConnectionA === newConnectionB) return;
+    const pair = [newConnectionA, newConnectionB].sort();
+    const exists = connections.some(c => {
+      const existing = [c.cityA, c.cityB].sort();
+      return existing[0] === pair[0] && existing[1] === pair[1];
+    });
+    if (exists) return;
+    const costValue = newConnectionCost.trim() === '' ? undefined : Number.parseFloat(newConnectionCost);
+    const cost = Number.isNaN(costValue as number) ? undefined : costValue;
+    setConnections(prev => [...prev, { cityA: newConnectionA, cityB: newConnectionB, cost }]);
+    setNewConnectionA('');
+    setNewConnectionB('');
+    setNewConnectionCost('');
+  };
+
+  const deleteConnection = (index: number) => {
+    setConnections(prev => prev.filter((_, idx) => idx !== index));
+  };
+
   // Save cities to static file
   const saveCities = async () => {
     try {
       const resp = await fetch('/api/save-cities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mapId: map.id, cities, regions }),
+        body: JSON.stringify({ mapId: map.id, cities, regions, connections }),
       });
       if (!resp.ok) {
         const error = await resp.text();
@@ -440,6 +484,15 @@ export default function CityRegionEditor({ mapId }: Props) {
             <label className="inline-flex items-center text-sm text-gray-200">
               <input type="checkbox" checked={showCountryOutline} onChange={(e) => setShowCountryOutline(e.target.checked)} className="mr-2" />
               Show Country Outline
+            </label>
+            <label className="inline-flex items-center text-sm text-gray-200">
+              <input
+                type="checkbox"
+                checked={showConnectionCosts}
+                onChange={(e) => setShowConnectionCosts(e.target.checked)}
+                className="mr-2"
+              />
+              Show Connection Costs
             </label>
             <span className="text-gray-400 text-xs">{spacePressed ? '🖐️ Pan Mode' : '💡 Hold SPACE + drag to pan'}</span>
           </div>
@@ -544,6 +597,74 @@ export default function CityRegionEditor({ mapId }: Props) {
                 ))}
               </g>
 
+              {/* City connections */}
+              <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+                {connections.map((connection, idx) => {
+                  const cityA = cityById.get(connection.cityA);
+                  const cityB = cityById.get(connection.cityB);
+                  if (!cityA || !cityB) return null;
+                  const a = toScreen(cityA);
+                  const b = toScreen(cityB);
+                  const midX = (a.x + b.x) / 2;
+                  const midY = (a.y + b.y) / 2;
+                  return (
+                    <g key={`connection-${idx}`}>
+                      <circle
+                        cx={a.x}
+                        cy={a.y}
+                        r={2.2}
+                        fill="#cbd5f5"
+                        fillOpacity={0.7}
+                      />
+                      <circle
+                        cx={b.x}
+                        cy={b.y}
+                        r={2.2}
+                        fill="#cbd5f5"
+                        fillOpacity={0.7}
+                      />
+                      <line
+                        x1={a.x}
+                        y1={a.y}
+                        x2={b.x}
+                        y2={b.y}
+                        stroke="#a5b4fc"
+                        strokeWidth={2.4}
+                        strokeOpacity={0.65}
+                        strokeLinecap="round"
+                        strokeDasharray="5 3"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      {showConnectionCosts && typeof connection.cost === 'number' && (
+                        <g>
+                          <circle
+                            cx={midX}
+                            cy={midY}
+                            r={10}
+                            fill="#0f172a"
+                            fillOpacity={0.75}
+                            stroke="#e2e8f0"
+                            strokeWidth={1.2}
+                          />
+                          <text
+                            x={midX}
+                            y={midY}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fill="#e2e8f0"
+                            fontSize="11"
+                            fontWeight="bold"
+                            style={{ pointerEvents: 'none', userSelect: 'none' }}
+                          >
+                            {connection.cost}
+                          </text>
+                        </g>
+                      )}
+                    </g>
+                  );
+                })}
+              </g>
+
               {/* Cities (unclipped so they're always visible) */}
               <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
                 {cities.map(city => {
@@ -615,7 +736,7 @@ export default function CityRegionEditor({ mapId }: Props) {
         </div>
 
         {/* Sidebar - City/Region Assignment */}
-        <div className="w-80 bg-slate-800 rounded-lg p-4 overflow-y-auto flex flex-col gap-4">
+        <div className="w-96 bg-slate-800 rounded-lg p-4 overflow-y-auto flex flex-col gap-4">
           <div>
             <h2 className="text-lg font-bold mb-4">Cities & Regions</h2>
             <div className="bg-slate-700 p-3 rounded mb-4">
@@ -815,6 +936,89 @@ export default function CityRegionEditor({ mapId }: Props) {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Connection Costs */}
+          <div>
+            <h3 className="font-bold mb-3">Connections</h3>
+            <div className="bg-slate-700 p-3 rounded mb-3">
+              <div className="text-sm font-semibold mb-2">Add Connection</div>
+              <div className="space-y-2">
+                <select
+                  value={newConnectionA}
+                  onChange={(e) => setNewConnectionA(e.target.value)}
+                  className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                >
+                  <option value="">City A</option>
+                  {cities.map(city => (
+                    <option key={`conn-a-${city.id}`} value={city.id}>{city.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={newConnectionB}
+                  onChange={(e) => setNewConnectionB(e.target.value)}
+                  className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                >
+                  <option value="">City B</option>
+                  {cities.map(city => (
+                    <option key={`conn-b-${city.id}`} value={city.id}>{city.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  value={newConnectionCost}
+                  onChange={(e) => setNewConnectionCost(e.target.value)}
+                  placeholder="Cost (optional)"
+                  className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                />
+                <button
+                  className="w-full px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                  onClick={addConnection}
+                >
+                  + Add Connection
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2 max-h-56 overflow-y-auto">
+              {connections.map((connection, idx) => {
+                const cityA = cityById.get(connection.cityA);
+                const cityB = cityById.get(connection.cityB);
+                const label = `${cityA?.name || connection.cityA} ↔ ${cityB?.name || connection.cityB}`;
+                return (
+                  <div key={`connection-row-${idx}`} className="bg-slate-700 p-3 rounded text-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs text-gray-200">{label}</div>
+                      <button
+                        className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded"
+                        onClick={() => deleteConnection(idx)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-300">Cost</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={typeof connection.cost === 'number' ? connection.cost : ''}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            updateConnectionCost(idx, null);
+                          } else {
+                            const next = Number.parseFloat(raw);
+                            updateConnectionCost(idx, Number.isNaN(next) ? null : next);
+                          }
+                        }}
+                        className="w-24 px-2 py-1 bg-slate-600 text-white rounded text-xs"
+                      />
+                      <span className="text-[10px] text-gray-400">{connection.cityA} ↔ {connection.cityB}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

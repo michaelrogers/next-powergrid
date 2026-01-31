@@ -17,10 +17,17 @@ type RegionData = {
   cityIds: string[];
 };
 
+type ConnectionData = {
+  cityA: string;
+  cityB: string;
+  cost?: number;
+};
+
 type CitiesPayload = {
   mapId: string;
   cities: CityData[];
   regions?: RegionData[];
+  connections?: ConnectionData[];
   lastUpdated?: string;
 };
 

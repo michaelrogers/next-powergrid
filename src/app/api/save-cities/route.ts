@@ -17,10 +17,17 @@ type RegionData = {
   cityIds: string[];
 };
 
+type ConnectionData = {
+  cityA: string;
+  cityB: string;
+  cost?: number;
+};
+
 type Payload = {
   mapId: string;
   cities: CityData[];
   regions?: RegionData[];
+  connections?: ConnectionData[];
 };
 
 export async function POST(req: Request) {
@@ -41,6 +48,7 @@ export async function POST(req: Request) {
       mapId: payload.mapId,
       cities: payload.cities,
       regions: payload.regions || [],
+      connections: payload.connections || [],
       lastUpdated: new Date().toISOString(),
     };
 

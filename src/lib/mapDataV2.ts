@@ -21,6 +21,12 @@ export interface RegionDefinition {
   cityIds: string[]; // Cities that seed this region's Voronoi cell
 }
 
+export interface ConnectionDefinition {
+  cityA: string;
+  cityB: string;
+  cost?: number;
+}
+
 export interface GameMapV2 {
   id: string;
   name: string;
@@ -28,7 +34,7 @@ export interface GameMapV2 {
   height: number;
   cities: CityDefinition[]; // Global city registry
   regions: RegionDefinition[]; // Regions defined by city assignments
-  connections: Array<{ cityA: string; cityB: string }>;
+  connections: ConnectionDefinition[];
   countryOutline?: string;
 }
 

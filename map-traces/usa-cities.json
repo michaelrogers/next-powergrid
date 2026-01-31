@@ -128,5 +128,148 @@
       "y": 38
     }
   ],
-  "lastUpdated": "2026-01-31T21:19:19.521Z"
+  "regions": [
+    {
+      "name": "Northeast",
+      "regionColor": "#60a5fa",
+      "cityIds": [
+        "boston",
+        "newyork",
+        "buffalo",
+        "philadelphia",
+        "pittsburgh",
+        "washington",
+        "norfolk"
+      ]
+    },
+    {
+      "id": "midwest",
+      "regionColor": "#f59e0b",
+      "cityIds": [
+        "minneapolis",
+        "chicago",
+        "detroit",
+        "stlouis"
+      ]
+    },
+    {
+      "id": "south",
+      "name": "South",
+      "regionColor": "#10b981",
+      "cityIds": [
+        "atlanta",
+        "houston",
+        "dallas",
+        "neworleans"
+      ]
+    },
+    {
+      "id": "west",
+      "regionColor": "#ef4444",
+      "cityIds": [
+        "seattle",
+        "portland",
+        "sanfrancisco",
+        "losangeles",
+        "lasvegas",
+        "denver"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "cityA": "newyork",
+      "cityB": "philadelphia"
+    },
+    {
+      "cityA": "philadelphia",
+      "cityB": "washington"
+    },
+    {
+      "cityA": "pittsburgh",
+      "cityB": "philadelphia"
+    },
+    {
+      "cityA": "buffalo",
+      "cityB": "newyork"
+    },
+    {
+      "cityA": "norfolk",
+      "cityB": "washington"
+    },
+    {
+      "cityA": "minneapolis",
+      "cityB": "chicago"
+    },
+    {
+      "cityA": "chicago",
+      "cityB": "detroit"
+    },
+    {
+      "cityA": "chicago",
+      "cityB": "stlouis"
+    },
+    {
+      "cityA": "detroit",
+      "cityB": "newyork"
+    },
+    {
+      "cityA": "stlouis",
+      "cityB": "dallas"
+    },
+    {
+      "cityA": "chicago",
+      "cityB": "washington"
+    },
+    {
+      "cityA": "pittsburgh",
+      "cityB": "chicago"
+    },
+    {
+      "cityA": "stlouis",
+      "cityB": "atlanta"
+    },
+    {
+      "cityA": "atlanta",
+      "cityB": "neworleans"
+    },
+    {
+      "cityA": "dallas",
+      "cityB": "houston",
+      "cost": 8
+    },
+    {
+      "cityA": "houston",
+      "cityB": "neworleans"
+    },
+    {
+      "cityA": "seattle",
+      "cityB": "portland"
+    },
+    {
+      "cityA": "portland",
+      "cityB": "sanfrancisco"
+    },
+    {
+      "cityA": "sanfrancisco",
+      "cityB": "losangeles"
+    },
+    {
+      "cityA": "losangeles",
+      "cityB": "lasvegas"
+    },
+    {
+      "cityA": "denver",
+      "cityB": "lasvegas"
+    },
+    {
+      "cityA": "denver",
+      "cityB": "dallas"
+    },
+    {
+      "cityA": "denver",
+      "cityB": "sanfrancisco"
+    }
+  ],
+  "lastUpdated": "2026-01-31T21:53:30.025Z"
 }
