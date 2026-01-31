@@ -1,0 +1,132 @@
+{
+  "mapId": "usa",
+  "cities": [
+    {
+      "id": "boston",
+      "name": "Boston",
+      "regionId": "northeast",
+      "x": 93.99840411166905,
+      "y": 29.9072639371103
+    },
+    {
+      "id": "newyork",
+      "name": "New York",
+      "regionId": "northeast",
+      "x": 89.70595235211088,
+      "y": 35.00796205907291
+    },
+    {
+      "id": "philadelphia",
+      "name": "Philadelphia",
+      "regionId": "northeast",
+      "x": 87.00466781727214,
+      "y": 40.58479093494212
+    },
+    {
+      "id": "washington",
+      "name": "Washington",
+      "regionId": "northeast",
+      "x": 82.09704123812051,
+      "y": 45.522676729004786
+    },
+    {
+      "id": "minneapolis",
+      "name": "Minneapolis",
+      "regionId": "midwest",
+      "x": 54.51483586315582,
+      "y": 19.10559751439412
+    },
+    {
+      "id": "chicago",
+      "name": "Chicago",
+      "regionId": "midwest",
+      "x": 63.08522438918609,
+      "y": 33.525932255214585
+    },
+    {
+      "id": "detroit",
+      "name": "Detroit",
+      "regionId": "midwest",
+      "x": 70.73628731605355,
+      "y": 31.287363203318602
+    },
+    {
+      "id": "stlouis",
+      "name": "St. Louis",
+      "regionId": "midwest",
+      "x": 50,
+      "y": 38
+    },
+    {
+      "id": "atlanta",
+      "name": "Atlanta",
+      "regionId": "south",
+      "x": 71.37909183320373,
+      "y": 66.56009593690567
+    },
+    {
+      "id": "houston",
+      "name": "Houston",
+      "regionId": "south",
+      "x": 51.06715908621727,
+      "y": 78.77572730314493
+    },
+    {
+      "id": "dallas",
+      "name": "Dallas",
+      "regionId": "south",
+      "x": 49.56892067174027,
+      "y": 68.22726391639598
+    },
+    {
+      "id": "neworleans",
+      "name": "New Orleans",
+      "regionId": "south",
+      "x": 59.81752899355286,
+      "y": 79.40803813930793
+    },
+    {
+      "id": "seattle",
+      "name": "Seattle",
+      "regionId": "west",
+      "x": 6.578338810050828,
+      "y": 7.528115519929222
+    },
+    {
+      "id": "portland",
+      "name": "Portland",
+      "regionId": "west",
+      "x": 2.7944491151434283,
+      "y": 18.406997864802428
+    },
+    {
+      "id": "sanfrancisco",
+      "name": "San Francisco",
+      "regionId": "west",
+      "x": 4.374609375,
+      "y": 49.154296875
+    },
+    {
+      "id": "losangeles",
+      "name": "Los Angeles",
+      "regionId": "west",
+      "x": 10.358984374999999,
+      "y": 61.65625
+    },
+    {
+      "id": "lasvegas",
+      "name": "Las Vegas",
+      "regionId": "west",
+      "x": 16.039988501281545,
+      "y": 54.49745794522451
+    },
+    {
+      "id": "denver",
+      "name": "Denver",
+      "regionId": "west",
+      "x": 34.59607249420412,
+      "y": 43.2534293192983
+    }
+  ],
+  "createdAt": "2026-01-31T03:00:48.749Z"
+}
