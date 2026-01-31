@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { MAPS_V2, type GameMapV2, type RegionDefinition } from '@/lib/mapDataV2';
 import { renderRegionsWithVoronoi } from '@/lib/voronoiRegionRenderer';
 import { buildOutlinePath, buildOutlinePoints, getPolygonsFromGeoJson, selectBestPolygon } from '@/lib/geojsonOutline';
+import { getVoronoiRegions } from '@/lib/voronoiCache';
 import type { GeoJson } from '@/lib/geojsonOutline';
 
 const clamp = (v: number, a = 0, b = 100) => Math.max(a, Math.min(b, v));
@@ -72,6 +73,16 @@ export default function CityRegionEditor({ mapId }: Props) {
   // Voronoi regions - computed asynchronously to avoid blocking render
   const [renderedRegions, setRenderedRegions] = useState<ReturnType<typeof renderRegionsWithVoronoi>>([]);
 
+  // Load cached Voronoi visualization on map load
+  useEffect(() => {
+    if (!map) return;
+    
+    const cachedRegions = getVoronoiRegions(map.id);
+    if (cachedRegions) {
+      setRenderedRegions(cachedRegions);
+    }
+  }, [map?.id]); // Only depend on map ID, not the entire map object
+
   // Load country outline
   useEffect(() => {
     if (!map) return;
@@ -105,7 +116,8 @@ export default function CityRegionEditor({ mapId }: Props) {
     return () => { cancelled = true; };
   }, [map]);
 
-  // Compute Voronoi regions asynchronously after mount - debounced
+  // Compute Voronoi regions asynchronously after cities/regions change - debounced
+  // This recalculates only when user edits cities or regions
   useEffect(() => {
     if (!map || cities.length === 0 || regions.length === 0) {
       setRenderedRegions([]);
