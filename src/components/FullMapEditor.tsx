@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MAPS, getMapByName } from '@/lib/mapData';
 import { buildOutlinePath, getPolygonsFromGeoJson, selectBestPolygon, GeoJson } from '@/lib/geojsonOutline';
+import VoronoiSuggester from './VoronoiSuggester';
 
 const clamp = (v: number, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 
@@ -67,10 +68,11 @@ export default function FullMapEditor({ mapId }: Props) {
   const history = useRef<RegionData[][]>([]);
   const historyIndex = useRef<number>(-1);
   const refAlignSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastMousePos = useRef<{ x: number; y: number }>({ x: 50, y: 50 });
 
   // Snap to close
   const [snapTarget, setSnapTarget] = useState<{ regionIndex: number; pointIndex: number } | null>(null);
-  const snapThreshold = 15; // pixels in screen space
+  const snapThreshold = 8; // pixels in screen space - reduced for less sensitive snapping
 
   // Resolve mapId from URL if needed
   useEffect(() => {
@@ -160,7 +162,7 @@ export default function FullMapEditor({ mapId }: Props) {
           setCountryOutlinePath(null);
           return;
         }
-        const path = buildOutlinePath(selected);
+        const path = buildOutlinePath(selected, map.id);
         if (!cancelled) setCountryOutlinePath(path);
       } catch (err) {
         if (!cancelled) setCountryOutlinePath(null);
@@ -176,17 +178,45 @@ export default function FullMapEditor({ mapId }: Props) {
   // Initialize all regions
   useEffect(() => {
     if (!map) return;
-    const regionColors = ['#60a5fa', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
-    const initialRegions: RegionData[] = map.regions.map((reg, idx) => ({
-      id: reg.id,
-      name: reg.name,
-      color: reg.regionColor || regionColors[idx % regionColors.length],
-      points: parsePathToPoints(reg.regionOutline),
-    }));
-    setRegions(initialRegions);
-    setVisibleRegions(new Set(initialRegions.map((_, idx) => idx)));
-    history.current = [initialRegions.map(r => ({ ...r, points: [...r.points] }))];
-    historyIndex.current = 0;
+    
+    let cancelled = false;
+    
+    async function loadRegions() {
+      const regionColors = ['#60a5fa', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
+      let initialRegions: RegionData[] = map.regions.map((reg, idx) => ({
+        id: reg.id,
+        name: reg.name,
+        color: reg.regionColor || regionColors[idx % regionColors.length],
+        points: parsePathToPoints(reg.regionOutline),
+      }));
+
+      // Load saved traces
+      try {
+        const resp = await fetch(`/api/get-traces?mapId=${map.id}`);
+        if (resp.ok) {
+          const payload = (await resp.json()) as { ok: boolean; traces?: Record<string, any> };
+          if (payload.ok && payload.traces) {
+            // Merge saved traces with initial regions
+            initialRegions = initialRegions.map(reg => {
+              const saved = payload.traces?.[reg.id];
+              if (saved && saved.points && Array.isArray(saved.points)) {
+                return { ...reg, points: saved.points };
+              }
+              return reg;
+            });
+          }
+        }
+      } catch (err) {
+        // ignore fetch errors
+      }
+
+      if (!cancelled) {
+        setRegions(initialRegions);
+        setVisibleRegions(new Set(initialRegions.map((_, idx) => idx)));
+        history.current = [initialRegions.map(r => ({ ...r, points: [...r.points] }))];
+        historyIndex.current = 0;
+      }
+    }
 
     // Initialize cities
     const allCities: CityData[] = map.regions.flatMap(region =>
@@ -199,6 +229,11 @@ export default function FullMapEditor({ mapId }: Props) {
       }))
     );
     setCities(allCities);
+
+    loadRegions();
+    return () => {
+      cancelled = true;
+    };
   }, [map]);
 
   useEffect(() => {
@@ -277,6 +312,127 @@ export default function FullMapEditor({ mapId }: Props) {
   const toScreen = (p: { x: number; y: number }) => ({ x: (p.x / 100) * viewWidth, y: (p.y / 100) * viewHeight });
   const toPercent = (sx: number, sy: number) => ({ x: (sx / viewWidth) * 100, y: (sy / viewHeight) * 100 });
 
+  // Snap to border polygon edge
+  function snapToBorderEdge(point: { x: number; y: number }, threshold = 20): { x: number; y: number } {
+    if (!countryOutlinePath) return point;
+    
+    // Parse outline path to extract points - simplified: look for L commands
+    const matches = countryOutlinePath.match(/M[\d.,-\s]+/g) || [];
+    if (!matches.length) return point;
+    
+    // Extract all coordinate pairs from path
+    const coords: { x: number; y: number }[] = [];
+    const numMatches = countryOutlinePath.match(/([\d.-]+)/g) || [];
+    for (let i = 0; i + 1 < numMatches.length; i += 2) {
+      coords.push({ x: parseFloat(numMatches[i]), y: parseFloat(numMatches[i + 1]) });
+    }
+    
+    if (!coords.length) return point;
+    
+    // Find nearest point on outline
+    let minDist = Infinity;
+    let nearestPoint = point;
+    
+    for (let i = 0; i < coords.length; i++) {
+      const p1 = coords[i];
+      const p2 = coords[(i + 1) % coords.length];
+      
+      // Distance to this point
+      const dist = Math.hypot(point.x - p1.x, point.y - p1.y);
+      if (dist < minDist) {
+        minDist = dist;
+        nearestPoint = p1;
+      }
+      
+      // Distance to line segment
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const len = Math.hypot(dx, dy);
+      if (len > 0) {
+        const t = Math.max(0, Math.min(1, ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (len * len)));
+        const closestX = p1.x + t * dx;
+        const closestY = p1.y + t * dy;
+        const distToSegment = Math.hypot(point.x - closestX, point.y - closestY);
+        if (distToSegment < minDist) {
+          minDist = distToSegment;
+          nearestPoint = { x: closestX, y: closestY };
+        }
+      }
+    }
+    
+    // Only snap if within threshold
+    return minDist < threshold ? nearestPoint : point;
+  }
+
+  // Extract border points from country outline path
+  function extractBorderPoints(): { x: number; y: number }[] {
+    if (!countryOutlinePath) return [];
+    const numMatches = countryOutlinePath.match(/([-\d.]+)/g) || [];
+    const points: { x: number; y: number }[] = [];
+    for (let i = 0; i + 1 < numMatches.length; i += 2) {
+      points.push({ x: parseFloat(numMatches[i]), y: parseFloat(numMatches[i + 1]) });
+    }
+    return points;
+  }
+
+  // Refine polygon edges that overlap with country border by adding detail points
+  function refineEdgesNearBorder(points: { x: number; y: number }[]): { x: number; y: number }[] {
+    const borderPoints = extractBorderPoints();
+    if (!borderPoints.length || points.length < 2) return points;
+
+    const edgeThreshold = 2.5; // tolerance in percentage points for detecting edge-border overlap
+    const detailThreshold = 3.5; // tolerance for including detail points
+    const refined = [...points];
+
+    // Process each edge
+    for (let i = 0; i < refined.length; i++) {
+      const p1 = refined[i];
+      const p2 = refined[(i + 1) % refined.length];
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const segmentLen = Math.hypot(dx, dy);
+      
+      if (segmentLen < 0.1) continue;
+
+      // Find border points close to this edge
+      const pointsOnEdge: { point: { x: number; y: number }; t: number; dist: number }[] = [];
+      
+      for (const bp of borderPoints) {
+        const t = segmentLen > 0 
+          ? ((bp.x - p1.x) * dx + (bp.y - p1.y) * dy) / (segmentLen * segmentLen)
+          : 0;
+        
+        if (t >= -0.02 && t <= 1.02) {
+          const closestX = p1.x + t * dx;
+          const closestY = p1.y + t * dy;
+          const dist = Math.hypot(bp.x - closestX, bp.y - closestY);
+          
+          // Only include if edge is close to border AND point adds detail
+          if (dist < edgeThreshold && dist < detailThreshold) {
+            pointsOnEdge.push({ point: bp, t, dist });
+          }
+        }
+      }
+
+      // Sort by position along edge and insert unique points
+      if (pointsOnEdge.length > 0) {
+        pointsOnEdge.sort((a, b) => a.t - b.t);
+        
+        // Insert in reverse to preserve indices
+        for (let j = pointsOnEdge.length - 1; j >= 0; j--) {
+          const existing = refined.some(p => 
+            Math.hypot(p.x - pointsOnEdge[j].point.x, p.y - pointsOnEdge[j].point.y) < 0.3
+          );
+          if (!existing) {
+            refined.splice(i + 1 + j, 0, { ...pointsOnEdge[j].point });
+          }
+        }
+      }
+    }
+
+    return refined;
+  }
+
   function pushHistory(snapshot: RegionData[]) {
     history.current = history.current.slice(0, historyIndex.current + 1);
     history.current.push(snapshot.map(r => ({ ...r, points: r.points.map(p => ({ ...p })) })));
@@ -332,6 +488,15 @@ export default function FullMapEditor({ mapId }: Props) {
   }
 
   function handlePointerMove(e: React.PointerEvent) {
+    // Track current mouse position for addPoint
+    if (svgRef.current) {
+      const rect = svgRef.current.getBoundingClientRect();
+      const sx = (e.clientX - rect.left - pan.x) / zoom;
+      const sy = (e.clientY - rect.top - pan.y) / zoom;
+      const pct = toPercent(sx, sy);
+      lastMousePos.current = { x: clamp(pct.x), y: clamp(pct.y) };
+    }
+
     if (isPanning) {
       if (!panStart.current) return;
       const dx = e.clientX - panStart.current.x;
@@ -385,6 +550,11 @@ export default function FullMapEditor({ mapId }: Props) {
       if (snapped) break;
     }
 
+    // If not snapped to another point, try snapping to border edge
+    if (!snapped) {
+      pct = snapToBorderEdge(pct, snapThreshold);
+    }
+
     setSnapTarget(snapped);
 
     setRegions((prev) => {
@@ -419,10 +589,12 @@ export default function FullMapEditor({ mapId }: Props) {
 
   function addPoint() {
     if (!selectedRegion) return;
+    // Add point at center of map
+    const centerPoint = { x: 50, y: 50 };
     setRegions((prev) => {
       const next = prev.map((reg, idx) => {
         if (idx !== selectedRegionIndex) return reg;
-        const newPoints = [...reg.points, { x: 50, y: 50 }];
+        const newPoints = [...reg.points, centerPoint];
         return { ...reg, points: newPoints };
       });
       pushHistory(next);
@@ -443,6 +615,40 @@ export default function FullMapEditor({ mapId }: Props) {
   }
 
   function handleBackgroundPointerDown(e: React.PointerEvent) {
+    // Shift+click to add point at mouse position
+    if (e.shiftKey && e.button === 0 && !spacePressed && editMode === 'polygons' && selectedRegion) {
+      e.preventDefault();
+      // Get mouse position in SVG coordinates
+      if (svgRef.current) {
+        const rect = svgRef.current.getBoundingClientRect();
+        // SVG viewBox coordinates are already map space, but we're inside a scaled/translated group
+        // The group has: translate(pan.x, pan.y) scale(zoom)
+        // So we need to reverse that: (screenCoords - pan) / zoom
+        const svgX = (e.clientX - rect.left) / rect.width * map.width;
+        const svgY = (e.clientY - rect.top) / rect.height * map.height;
+        
+        // Now reverse the group transforms
+        const groupX = (svgX - pan.x) / zoom;
+        const groupY = (svgY - pan.y) / zoom;
+        
+        // This gives us coordinates in map space (0-map.width, 0-map.height)
+        // Convert to percentage (0-100)
+        const pct = toPercent(groupX, groupY);
+        const newPoint = { x: clamp(pct.x), y: clamp(pct.y) };
+        
+        setRegions((prev) => {
+          const next = prev.map((reg, idx) => {
+            if (idx !== selectedRegionIndex) return reg;
+            const newPoints = [...reg.points, newPoint];
+            return { ...reg, points: newPoints };
+          });
+          pushHistory(next);
+          return next;
+        });
+      }
+      return;
+    }
+
     if (e.button === 1 || e.button === 2 || (e.button === 0 && spacePressed)) {
       e.preventDefault();
       setIsPanning(true);
@@ -492,7 +698,15 @@ export default function FullMapEditor({ mapId }: Props) {
 
   async function saveRegion(regionIdx: number) {
     const reg = regions[regionIdx];
-    const pathData = generatePathData(reg.points);
+    
+    // Refine edges near border automatically
+    const refinedPoints = refineEdgesNearBorder(reg.points);
+    const pathData = generatePathData(refinedPoints);
+    
+    if (!pathData) {
+      alert(`Cannot save ${reg.name}: no points drawn. Please draw a polygon for this region.`);
+      return;
+    }
     
     // Get cities for this region from the updated cities array
     const regionCities = cities.filter(c => c.regionId === reg.id).map(c => ({
@@ -506,7 +720,7 @@ export default function FullMapEditor({ mapId }: Props) {
       mapId: map.id,
       regionId: reg.id,
       path: pathData,
-      points: reg.points,
+      points: refinedPoints,
       cities: regionCities,
     };
 
@@ -520,7 +734,11 @@ export default function FullMapEditor({ mapId }: Props) {
         const errText = await resp.text();
         alert(`Failed to save: ${errText}`);
       } else {
-        alert(`Saved ${reg.name}!`);
+        const pointsAdded = refinedPoints.length - reg.points.length;
+        const msg = pointsAdded > 0 
+          ? `Saved ${reg.name}! (+${pointsAdded} detail points from border)`
+          : `Saved ${reg.name}!`;
+        alert(msg);
       }
     } catch (err) {
       alert(`Error saving: ${err}`);
@@ -676,9 +894,9 @@ export default function FullMapEditor({ mapId }: Props) {
           <div className="flex gap-2 flex-wrap">
             {editMode === 'polygons' && (
               <>
-                <button className="px-3 py-1 bg-slate-700 text-white rounded" onClick={addPoint}>Add Point</button>
-                <button className="px-3 py-1 bg-slate-700 text-white rounded" onClick={removePoint}>Remove Point</button>
-                <button className="px-3 py-1 bg-slate-700 text-white rounded" onClick={() => { undo(); }} title="Undo">Undo</button>
+                <button className="px-3 py-1 bg-slate-700 text-white rounded text-xs" onClick={addPoint}>Add Point (center)</button>
+                <button className="px-3 py-1 bg-slate-700 text-white rounded text-xs" onClick={removePoint}>Remove Point</button>
+                <button className="px-3 py-1 bg-slate-700 text-white rounded text-xs" onClick={() => { undo(); }} title="Undo">Undo</button>
                 <button className="px-3 py-1 bg-slate-700 text-white rounded" onClick={() => { redo(); }} title="Redo">Redo</button>
                 <button
                   className={`px-3 py-1 ${insertMode ? 'bg-amber-600' : 'bg-slate-700'} text-white rounded`}
@@ -785,8 +1003,9 @@ export default function FullMapEditor({ mapId }: Props) {
                 )}
               </defs>
 
-              <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`} onPointerDown={handleBackgroundPointerDown} onWheel={handleWheel as any}>
-                {showReference && (
+              {/* Reference image - render before main group so it bleeds over edges */}
+              {showReference && (
+                <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
                   <g transform={`translate(${refAlign.x} ${refAlign.y}) scale(${refAlign.scale})`}>
                     <image
                       href={`/maps/refs/${map.id}-ref.jpg`}
@@ -798,7 +1017,10 @@ export default function FullMapEditor({ mapId }: Props) {
                       preserveAspectRatio="xMidYMid slice"
                     />
                   </g>
-                )}
+                </g>
+              )}
+
+              <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`} onPointerDown={handleBackgroundPointerDown} onWheel={handleWheel as any}>
                 <rect width={map.width} height={map.height} fill="transparent" />
 
                 {/* Render country outline */}
@@ -816,6 +1038,23 @@ export default function FullMapEditor({ mapId }: Props) {
                   </g>
                 )}
 
+                {/* Voronoi Region Suggester - shows suggested boundaries based on city seed points */}
+                {editMode === 'polygons' && cities.length > 0 && (
+                  <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+                    <VoronoiSuggester
+                      cities={cities}
+                      mapBounds={map}
+                      targetRegionCount={map.regions.length}
+                      zoom={zoom}
+                      pan={pan}
+                      svgWidth={map.width}
+                      svgHeight={map.height}
+                      opacity={0.12}
+                      showAdjacentRegionLabels={true}
+                    />
+                  </g>
+                )}
+
                 {/* Render all region outlines */}
                 <g
                   transform={`scale(${map.width / 100} ${map.height / 100})`}
@@ -825,15 +1064,28 @@ export default function FullMapEditor({ mapId }: Props) {
                     if (!visibleRegions.has(regIdx)) return null;
                     const pathData = generatePathData(reg.points);
                     const isSelected = regIdx === selectedRegionIndex;
+                    const isClosed = reg.points.length >= 3; // Polygon is closed with 3+ points
+                    
                     return (
-                      <path
-                        key={reg.id}
-                        d={pathData}
-                        fill="none"
-                        stroke={reg.color}
-                        strokeWidth={isSelected ? 1.2 : 0.7}
-                        strokeOpacity={isSelected ? 1.0 : 0.6}
-                      />
+                      <g key={reg.id}>
+                        {/* Fill closed polygon with region color */}
+                        {isClosed && (
+                          <path
+                            d={pathData}
+                            fill={reg.color}
+                            fillOpacity={0.15}
+                            stroke="none"
+                          />
+                        )}
+                        {/* Stroke outline */}
+                        <path
+                          d={pathData}
+                          fill="none"
+                          stroke={reg.color}
+                          strokeWidth={isSelected ? 1.2 : 0.7}
+                          strokeOpacity={isSelected ? 1.0 : 0.6}
+                        />
+                      </g>
                     );
                   })}
                 </g>

@@ -66,11 +66,31 @@ function getPolygonBounds(poly: PolygonRings) {
   return { minLon, maxLon, minLat, maxLat };
 }
 
-export function buildOutlinePath(poly: PolygonRings): string {
-  const { minLon, maxLon, minLat, maxLat } = getPolygonBounds(poly);
+export function buildOutlinePath(poly: PolygonRings, mapId?: string): string {
+  // Define geographic bounds for each map (in lon/lat) - MUST MATCH buildOutlinePoints
+  let lonBounds = [-180, 180];
+  let latBounds = [-90, 90];
+  
+  if (mapId === 'usa') {
+    // USA continental bounds (approximately)
+    lonBounds = [-125, -66];
+    latBounds = [24, 50];
+  } else if (mapId === 'germany') {
+    // Germany bounds (approximately)
+    lonBounds = [6, 16];
+    latBounds = [47, 56];
+  } else if (mapId === 'france') {
+    // France bounds (approximately)
+    lonBounds = [-8, 9];
+    latBounds = [42, 52];
+  }
+  
+  const [minLon, maxLon] = lonBounds;
+  const [minLat, maxLat] = latBounds;
   const lonSpan = maxLon - minLon || 1;
   const latSpan = maxLat - minLat || 1;
   const toXY = (lon: number, lat: number) => {
+    // DON'T clamp - let coordinates flow naturally
     const x = ((lon - minLon) / lonSpan) * 100;
     const y = ((maxLat - lat) / latSpan) * 100;
     return { x, y };
@@ -90,6 +110,64 @@ export function buildOutlinePath(poly: PolygonRings): string {
     paths.push(parts.join(' '));
   }
   return paths.join(' ');
+}
+
+/**
+ * Convert GeoJSON polygon to normalized percentage coordinates (0-100)
+ * Normalizes based on geographic bounds, not polygon bounds
+ * @param poly GeoJSON polygon rings
+ * @param mapId Map identifier to use correct geographic bounds
+ */
+export function buildOutlinePoints(poly: PolygonRings, mapId?: string): Array<{x: number, y: number}> {
+  const outerRing = poly[0] || [];
+  if (!outerRing.length) return [];
+  
+  // Define geographic bounds for each map (in lon/lat)
+  let lonBounds = [-180, 180];
+  let latBounds = [-90, 90];
+  
+  if (mapId === 'usa') {
+    // USA continental bounds (approximately)
+    lonBounds = [-125, -66];
+    latBounds = [24, 50];
+  } else if (mapId === 'germany') {
+    // Germany bounds (approximately)
+    lonBounds = [6, 16];
+    latBounds = [47, 56];
+  } else if (mapId === 'france') {
+    // France bounds (approximately)
+    lonBounds = [-8, 9];
+    latBounds = [42, 52];
+  }
+  
+  const [minLon, maxLon] = lonBounds;
+  const [minLat, maxLat] = latBounds;
+  const lonSpan = maxLon - minLon || 1;
+  const latSpan = maxLat - minLat || 1;
+  
+  const toXY = (lon: number, lat: number) => {
+    // DON'T clamp here - allow points outside bounds to pass through
+    // This ensures the clipping polygon covers the full coastline
+    const x = ((lon - minLon) / lonSpan) * 100;
+    const y = ((maxLat - lat) / latSpan) * 100;  // Y inversion
+    return { x, y };
+  };
+
+  const points: Array<{x: number, y: number}> = [];
+  for (const [lon, lat] of outerRing) {
+    points.push(toXY(lon, lat));
+  }
+  
+  // Ensure polygon is closed (first point = last point)
+  if (points.length > 0) {
+    const first = points[0];
+    const last = points[points.length - 1];
+    if (Math.abs(first.x - last.x) > 0.01 || Math.abs(first.y - last.y) > 0.01) {
+      points.push(first); // Close the polygon
+    }
+  }
+  
+  return points;
 }
 
 export function selectBestPolygon(polygons: PolygonRings[], mapId: string): PolygonRings | null {
