@@ -1,0 +1,76 @@
+{
+  "mapId": "germany",
+  "cities": [
+    {
+      "id": "hamburg",
+      "name": "Hamburg",
+      "regionId": "north",
+      "x": 50,
+      "y": 15
+    },
+    {
+      "id": "bremen",
+      "name": "Bremen",
+      "regionId": "north",
+      "x": 40,
+      "y": 20
+    },
+    {
+      "id": "kiel",
+      "name": "Kiel",
+      "regionId": "north",
+      "x": 55,
+      "y": 10
+    },
+    {
+      "id": "cologne",
+      "name": "Cologne",
+      "regionId": "west",
+      "x": 30,
+      "y": 35
+    },
+    {
+      "id": "dusseldorf",
+      "name": "Düsseldorf",
+      "regionId": "west",
+      "x": 32,
+      "y": 32
+    },
+    {
+      "id": "frankfurt",
+      "name": "Frankfurt",
+      "regionId": "central",
+      "x": 42,
+      "y": 42
+    },
+    {
+      "id": "berlin",
+      "name": "Berlin",
+      "regionId": "east",
+      "x": 55,
+      "y": 25
+    },
+    {
+      "id": "leipzig",
+      "name": "Leipzig",
+      "regionId": "east",
+      "x": 52,
+      "y": 38
+    },
+    {
+      "id": "munich",
+      "name": "Munich",
+      "regionId": "south",
+      "x": 55,
+      "y": 60
+    },
+    {
+      "id": "nuremberg",
+      "name": "Nuremberg",
+      "regionId": "south",
+      "x": 50,
+      "y": 50
+    }
+  ],
+  "lastUpdated": "2026-01-31T03:00:48.749Z"
+}

@@ -5,8 +5,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GameMap, City } from '@/lib/mapData';
+import { buildOutlinePath, getPolygonsFromGeoJson, selectBestPolygon, GeoJson } from '@/lib/geojsonOutline';
 import { Player } from '@/types/game';
 
 interface GameMapProps {
@@ -27,6 +28,61 @@ export default function GameMapComponent({
   compact = false,
 }: GameMapProps) {
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
+  const [countryOutlinePath, setCountryOutlinePath] = useState<string | null>(null);
+  const [cityOverrides, setCityOverrides] = useState<Record<string, { x: number; y: number }>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOutline() {
+      try {
+        const resp = await fetch(`/maps/${map.id}.geo.json`);
+        if (!resp.ok) {
+          if (!cancelled) setCountryOutlinePath(null);
+          return;
+        }
+        const data = (await resp.json()) as GeoJson;
+        const polygons = getPolygonsFromGeoJson(data);
+        const selected = selectBestPolygon(polygons, map.id);
+        if (!selected) {
+          if (!cancelled) setCountryOutlinePath(null);
+          return;
+        }
+        const path = buildOutlinePath(selected);
+        if (!cancelled) setCountryOutlinePath(path);
+      } catch (err) {
+        if (!cancelled) setCountryOutlinePath(null);
+      }
+    }
+
+    loadOutline();
+    return () => {
+      cancelled = true;
+    };
+  }, [map.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCities() {
+      try {
+        const resp = await fetch(`/api/cities?mapId=${map.id}`);
+        if (!resp.ok) return;
+        const payload = (await resp.json()) as { ok: boolean; data?: { cities: Array<{ id: string; x: number; y: number }> } };
+        if (!payload.ok || !payload.data?.cities) return;
+        const overrides: Record<string, { x: number; y: number }> = {};
+        for (const city of payload.data.cities) {
+          overrides[city.id] = { x: city.x, y: city.y };
+        }
+        if (!cancelled) setCityOverrides(overrides);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    loadCities();
+    return () => {
+      cancelled = true;
+    };
+  }, [map.id]);
 
   // Get player color for a city
   const getCityColor = (cityId: string): string => {
@@ -92,87 +148,103 @@ export default function GameMapComponent({
         {/* Background */}
         <rect width={map.width} height={map.height} fill="#1e293b" />
 
+        <defs>
+          {countryOutlinePath && (
+            <clipPath id={`country-clip-${map.id}`} clipPathUnits="userSpaceOnUse">
+              <path
+                d={countryOutlinePath}
+                transform={`scale(${map.width / 100} ${map.height / 100})`}
+              />
+            </clipPath>
+          )}
+        </defs>
+
         {/* Country Outline */}
-        {map.countryOutline && (
-          <path
-            d={map.countryOutline}
-            fill="#1e3a5f"
-            fillOpacity="0.2"
-            stroke="#3b82f6"
-            strokeWidth="3"
-            strokeOpacity="0.6"
-          />
+        {countryOutlinePath && (
+          <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+            <path
+              d={countryOutlinePath}
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth="1.2"
+              strokeOpacity="1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </g>
         )}
 
         {/* Region outlines and backgrounds */}
-        {map.regions.map((region) => {
-          const cities = region.cities;
-          if (cities.length === 0) return null;
+        <g clipPath={countryOutlinePath ? `url(#country-clip-${map.id})` : undefined}>
+          {map.regions.map((region) => {
+            const cities = region.cities;
+            if (cities.length === 0) return null;
 
-          const xs = cities.map((c) => (c.x / 100) * map.width);
-          const ys = cities.map((c) => (c.y / 100) * map.height);
-          const minX = Math.min(...xs);
-          const maxX = Math.max(...xs);
-          const minY = Math.min(...ys);
-          const maxY = Math.max(...ys);
-          const padding = 40;
+            const xs = cities.map((c) => ((cityOverrides[c.id]?.x ?? c.x) / 100) * map.width);
+            const ys = cities.map((c) => ((cityOverrides[c.id]?.y ?? c.y) / 100) * map.height);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+            const padding = 40;
 
-          return (
-            <g key={`region-${region.id}`}>
-              {/* If a regionOutline is provided, render it (assumed in 0-100 coord space) */}
-              {region.regionOutline ? (
-                <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
-                  <path
-                    d={region.regionOutline}
-                    fill="#2563eb"
-                    fillOpacity="0.06"
-                    stroke="#60a5fa"
-                    strokeWidth="0.8"
-                    strokeOpacity="0.45"
-                  />
-                </g>
-              ) : (
-                /* Fallback rectangle bounding box when no outline provided */
-                <>
-                  <rect
-                    x={minX - padding}
-                    y={minY - padding}
-                    width={maxX - minX + padding * 2}
-                    height={maxY - minY + padding * 2}
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="2"
-                    opacity="0.4"
-                    rx="8"
-                  />
+            return (
+              <g key={`region-${region.id}`}>
+                {/* If a regionOutline is provided, render it (assumed in 0-100 coord space) */}
+                {region.regionOutline ? (
+                  <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+                    <path
+                      d={region.regionOutline}
+                      fill={region.regionColor || '#2563eb'}
+                      fillOpacity={region.regionColor ? 0.14 : 0.06}
+                      stroke={region.regionColor || '#60a5fa'}
+                      strokeWidth="0.8"
+                      strokeOpacity={region.regionColor ? 0.9 : 0.45}
+                    />
+                  </g>
+                ) : (
+                  /* Fallback rectangle bounding box when no outline provided */
+                  <>
+                    <rect
+                      x={minX - padding}
+                      y={minY - padding}
+                      width={maxX - minX + padding * 2}
+                      height={maxY - minY + padding * 2}
+                      fill="none"
+                      stroke="#3b82f6"
+                      strokeWidth="2"
+                      opacity="0.4"
+                      rx="8"
+                    />
 
-                  {/* Semi-transparent region fill */}
-                  <rect
-                    x={minX - padding}
-                    y={minY - padding}
-                    width={maxX - minX + padding * 2}
-                    height={maxY - minY + padding * 2}
-                    fill="#3b82f6"
-                    opacity="0.05"
-                    rx="8"
-                  />
-                </>
-              )}
+                    {/* Semi-transparent region fill */}
+                    <rect
+                      x={minX - padding}
+                      y={minY - padding}
+                      width={maxX - minX + padding * 2}
+                      height={maxY - minY + padding * 2}
+                      fill="#3b82f6"
+                      opacity="0.05"
+                      rx="8"
+                    />
+                  </>
+                )}
 
-              {/* Region label */}
-              <text
-                x={minX - padding + 10}
-                y={minY - padding + 18}
-                fontSize="12"
-                fill="#60a5fa"
-                fontWeight="bold"
-                className="pointer-events-none select-none"
-              >
-                {region.name}
-              </text>
-            </g>
-          );
-        })}
+                {/* Region label */}
+                <text
+                  x={minX - padding + 10}
+                  y={minY - padding + 18}
+                  fontSize="12"
+                  fill="#60a5fa"
+                  fontWeight="bold"
+                  className="pointer-events-none select-none"
+                >
+                  {region.name}
+                </text>
+              </g>
+            );
+          })}
+        </g>
 
         {/* Connections (Power Lines) */}
         {map.connections.map((conn, idx) => {
@@ -185,10 +257,10 @@ export default function GameMapComponent({
 
           if (!cityA || !cityB) return null;
 
-          const x1 = (cityA.x / 100) * map.width;
-          const y1 = (cityA.y / 100) * map.height;
-          const x2 = (cityB.x / 100) * map.width;
-          const y2 = (cityB.y / 100) * map.height;
+          const x1 = ((cityOverrides[cityA.id]?.x ?? cityA.x) / 100) * map.width;
+          const y1 = ((cityOverrides[cityA.id]?.y ?? cityA.y) / 100) * map.height;
+          const x2 = ((cityOverrides[cityB.id]?.x ?? cityB.x) / 100) * map.width;
+          const y2 = ((cityOverrides[cityB.id]?.y ?? cityB.y) / 100) * map.height;
 
           return (
             <line
@@ -207,8 +279,10 @@ export default function GameMapComponent({
         {/* Cities */}
         {map.regions.flatMap((region) =>
           region.cities.map((city) => {
-            const x = (city.x / 100) * map.width;
-            const y = (city.y / 100) * map.height;
+            const displayX = cityOverrides[city.id]?.x ?? city.x;
+            const displayY = cityOverrides[city.id]?.y ?? city.y;
+            const x = (displayX / 100) * map.width;
+            const y = (displayY / 100) * map.height;
             const isSelected = selectedCities.includes(city.id);
             const isHovered = hoveredCity === city.id;
             const color = getCityColor(city.id);

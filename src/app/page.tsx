@@ -1,11 +1,12 @@
 'use client';
 
-import { GameProvider, useGame } from '@/contexts/GameContext';
+import { useGame } from '@/contexts/GameContext';
 import GameBoard from '@/components/GameBoard';
 import GameMapComponent from '@/components/GameMap';
 import { MAPS } from '@/lib/mapData';
 import { useState } from 'react';
-import { Player, GameConfig, RegionMap } from '@/types/game';
+import Link from 'next/link';
+import { Player, GameConfig } from '@/types/game';
 
 function GameSetup() {
   const { dispatch } = useGame();
@@ -55,6 +56,9 @@ function GameSetup() {
       <div className="max-w-md w-full bg-slate-800 rounded-lg shadow-2xl p-8 border border-slate-700">
         <h1 className="text-4xl font-bold text-white mb-2 text-center">Power Grid</h1>
         <p className="text-gray-400 text-center mb-8">Recharged - Build your power empire</p>
+        <div className="text-center mb-4">
+          <Link href="/devtools" className="text-sm text-indigo-400">Devtools — map tracing</Link>
+        </div>
 
         <div className="space-y-6">
           {/* Game Mode Selection */}
@@ -165,6 +169,32 @@ function GameSetup() {
               );
             })()}
           </div>
+
+          {/* Fullsize preview modal */}
+          {selectedPreview && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+              onClick={() => setSelectedPreview(null)}
+            >
+              <div
+                className="w-[90vw] h-[90vh] bg-slate-900 rounded shadow-2xl p-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-white font-bold">{MAPS[selectedPreview].name}</h2>
+                  <button
+                    className="text-gray-300 hover:text-white"
+                    onClick={() => setSelectedPreview(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="w-full h-full">
+                  <GameMapComponent map={MAPS[selectedPreview]} players={[]} compact={false} />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-white font-semibold mb-2">Map</label>
