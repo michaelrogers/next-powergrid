@@ -163,7 +163,7 @@ function GameSetup() {
                   onClick={() => setSelectedPreview(selectedMap)}
                 >
                   <div className="w-full h-full block">
-                    <GameMapComponent map={MAPS[selectedMap]} players={[]} compact />
+                    <GameMapComponent map={MAPS[selectedMap]} mapId={selectedMap} players={[]} compact />
                   </div>
                   <div className="mt-2 text-xs text-gray-300 text-center">
                     {mapObj.name} • {mapObj.regions.length} regions • {cityCount} cities
@@ -193,7 +193,7 @@ function GameSetup() {
                   </button>
                 </div>
                 <div className="w-full h-full">
-                  <GameMapComponent map={MAPS[selectedPreview]} players={[]} compact={false} />
+                  <GameMapComponent map={MAPS[selectedPreview]} mapId={selectedPreview} players={[]} compact={false} />
                 </div>
               </div>
             </div>

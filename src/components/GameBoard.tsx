@@ -284,6 +284,7 @@ export default function GameBoard() {
         ) : state.gameMap ? (
           <GameMapComponent
             map={state.gameMap}
+            mapId={state.mapId}
             players={state.players}
             buildMode={state.phase === GamePhase.BUILD_CITIES}
             onCityClick={handleCityClick}

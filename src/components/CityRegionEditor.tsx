@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { getCachedMap, type GameMapV2, type RegionDefinition } from '@/lib/mapDataV2';
+import { getCachedMap } from '@/lib/mapCache';
+import type { GameMapV2, RegionDefinition } from '@/lib/mapDataV2';
 import { renderRegionsWithVoronoi } from '@/lib/voronoiRegionRenderer';
 import { buildOutlinePath, buildOutlinePoints, getPolygonsFromGeoJson, selectBestPolygon } from '@/lib/geojsonOutline';
 import { getVoronoiRegions } from '@/lib/voronoiCache';

@@ -10,10 +10,13 @@ import { GameMap, City } from '@/lib/mapData';
 import { buildOutlinePath, getPolygonsFromGeoJson, selectBestPolygon, GeoJson } from '@/lib/geojsonOutline';
 import { Player } from '@/types/game';
 import { getVoronoiRegions } from '@/lib/voronoiCache';
+import { getCachedMap } from '@/lib/mapCache';
 import type { RenderedRegion } from '@/lib/voronoiRegionRenderer';
+import type { GameMapV2 } from '@/lib/mapDataV2';
 
 interface GameMapProps {
   map: GameMap;
+  mapId?: string; // ID for loading GameMapV2 from trace files (for Voronoi rendering)
   players: Player[];
   onCityClick?: (cityId: string, cityName: string) => void;
   selectedCities?: string[];
@@ -23,6 +26,8 @@ interface GameMapProps {
 
 export default function GameMapComponent({
   map,
+  mapId,
+
   players,
   onCityClick,
   selectedCities = [],
@@ -33,24 +38,46 @@ export default function GameMapComponent({
   const [countryOutlinePath, setCountryOutlinePath] = useState<string | null>(null);
   const [cityOverrides, setCityOverrides] = useState<Record<string, { x: number; y: number }>>({});
   const [voronoiRegions, setVoronoiRegions] = useState<RenderedRegion[] | null>(null);
+  const [loadedMap, setLoadedMap] = useState<GameMap>(map); // State for map loaded from trace files
+
+  // Load fresh map data from trace files when mapId is provided
+  useEffect(() => {
+    if (!mapId) {
+      setLoadedMap(map); // Fallback to prop if no mapId
+      return;
+    }
+
+    const loadMapFromTrace = async () => {
+      const mapV2 = await getCachedMap(mapId);
+      if (mapV2) {
+        // Convert GameMapV2 to GameMap format
+        const convertedMap = convertGameMapV2ToGameMap(mapV2);
+        setLoadedMap(convertedMap);
+      } else {
+        setLoadedMap(map); // Fallback if loading fails
+      }
+    };
+
+    loadMapFromTrace();
+  }, [mapId, map]);
 
   useEffect(() => {
     let cancelled = false;
     async function loadOutline() {
       try {
-        const resp = await fetch(`/maps/${map.id}.geo.json`);
+        const resp = await fetch(`/maps/${loadedMap.id}.geo.json`);
         if (!resp.ok) {
           if (!cancelled) setCountryOutlinePath(null);
           return;
         }
         const data = (await resp.json()) as GeoJson;
         const polygons = getPolygonsFromGeoJson(data);
-        const selected = selectBestPolygon(polygons, map.id);
+        const selected = selectBestPolygon(polygons, loadedMap.id);
         if (!selected) {
           if (!cancelled) setCountryOutlinePath(null);
           return;
         }
-        const path = buildOutlinePath(selected, map.id);
+        const path = buildOutlinePath(selected, loadedMap.id);
         if (!cancelled) setCountryOutlinePath(path);
       } catch (err) {
         if (!cancelled) setCountryOutlinePath(null);
@@ -61,13 +88,13 @@ export default function GameMapComponent({
     return () => {
       cancelled = true;
     };
-  }, [map.id]);
+  }, [loadedMap.id]);
 
   useEffect(() => {
     let cancelled = false;
     async function loadCities() {
       try {
-        const resp = await fetch(`/api/cities?mapId=${map.id}`);
+        const resp = await fetch(`/api/cities?mapId=${loadedMap.id}`);
         if (!resp.ok) return;
         const payload = (await resp.json()) as { ok: boolean; data?: { cities: Array<{ id: string; x: number; y: number }> } };
         if (!payload.ok || !payload.data?.cities) return;
@@ -85,16 +112,18 @@ export default function GameMapComponent({
     return () => {
       cancelled = true;
     };
-  }, [map.id]);
+  }, [loadedMap.id]);
 
-  // Load precomputed Voronoi regions
+  // Load precomputed Voronoi regions from the trace files using mapId
   useEffect(() => {
+    if (!mapId) return; // Ensure we have a mapId to load from
+    
     const loadRegions = async () => {
-      const regions = await getVoronoiRegions(map.id);
+      const regions = await getVoronoiRegions(mapId);
       setVoronoiRegions(regions);
     };
     loadRegions();
-  }, [map.id]);
+  }, [mapId]);
 
   // Get player color for a city
   const getCityColor = (cityId: string): string => {
@@ -144,28 +173,28 @@ export default function GameMapComponent({
     <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-900 rounded-lg p-4 flex flex-col">
       {!compact && (
         <div className="mb-2">
-          <h3 className="text-lg font-bold text-white">{map.name}</h3>
+          <h3 className="text-lg font-bold text-white">{loadedMap.name}</h3>
           <p className="text-xs text-gray-400">
-            {map.regions.length} regions • {map.regions.flatMap((r) => r.cities).length} cities
+            {loadedMap.regions.length} regions • {loadedMap.regions.flatMap((r) => r.cities).length} cities
           </p>
         </div>
       )}
 
       {/* SVG Map */}
       <svg
-        viewBox={`0 0 ${map.width} ${map.height}`}
+        viewBox={`0 0 ${loadedMap.width} ${loadedMap.height}`}
         className={`flex-1 ${compact ? '' : 'bg-slate-800 rounded border-2 border-slate-600 hover:border-slate-500 transition-colors'}`}
         style={{ maxHeight: '100%' }}
       >
         {/* Background */}
-        <rect width={map.width} height={map.height} fill="#1e293b" />
+        <rect width={loadedMap.width} height={loadedMap.height} fill="#1e293b" />
 
         <defs>
           {countryOutlinePath && (
-            <clipPath id={`country-clip-${map.id}`} clipPathUnits="userSpaceOnUse">
+            <clipPath id={`country-clip-${loadedMap.id}`} clipPathUnits="userSpaceOnUse">
               <path
                 d={countryOutlinePath}
-                transform={`scale(${map.width / 100} ${map.height / 100})`}
+                transform={`scale(${loadedMap.width / 100} ${loadedMap.height / 100})`}
               />
             </clipPath>
           )}
@@ -173,7 +202,7 @@ export default function GameMapComponent({
 
         {/* Country Outline */}
         {countryOutlinePath && (
-          <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+          <g transform={`scale(${loadedMap.width / 100} ${loadedMap.height / 100})`}>
             <path
               d={countryOutlinePath}
               fill="none"
@@ -188,7 +217,7 @@ export default function GameMapComponent({
 
         {/* Voronoi regions visualization */}
         {voronoiRegions && (
-          <g clipPath={countryOutlinePath ? `url(#country-clip-${map.id})` : undefined}>
+          <g clipPath={countryOutlinePath ? `url(#country-clip-${loadedMap.id})` : undefined}>
             {voronoiRegions.map((region, idx) => (
               <g key={`voronoi-region-${idx}`}>
                 {/* Voronoi cells for this region */}
@@ -214,13 +243,13 @@ export default function GameMapComponent({
 
         {/* Fallback: Region outlines if Voronoi not available */}
         {!voronoiRegions && (
-          <g clipPath={countryOutlinePath ? `url(#country-clip-${map.id})` : undefined}>
-            {map.regions.map((region) => {
+          <g clipPath={countryOutlinePath ? `url(#country-clip-${loadedMap.id})` : undefined}>
+            {loadedMap.regions.map((region) => {
               const cities = region.cities;
               if (cities.length === 0) return null;
 
-              const xs = cities.map((c) => ((cityOverrides[c.id]?.x ?? c.x) / 100) * map.width);
-              const ys = cities.map((c) => ((cityOverrides[c.id]?.y ?? c.y) / 100) * map.height);
+              const xs = cities.map((c) => ((cityOverrides[c.id]?.x ?? c.x) / 100) * loadedMap.width);
+              const ys = cities.map((c) => ((cityOverrides[c.id]?.y ?? c.y) / 100) * loadedMap.height);
               const minX = Math.min(...xs);
               const maxX = Math.max(...xs);
               const minY = Math.min(...ys);
@@ -231,7 +260,7 @@ export default function GameMapComponent({
                 <g key={`region-${region.id}`}>
                   {/* If a regionOutline is provided, render it (assumed in 0-100 coord space) */}
                   {region.regionOutline ? (
-                    <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+                    <g transform={`scale(${loadedMap.width / 100} ${loadedMap.height / 100})`}>
                       <path
                         d={region.regionOutline}
                         fill={region.regionColor || '#2563eb'}
@@ -287,20 +316,20 @@ export default function GameMapComponent({
         )}
 
         {/* Connections (Power Lines) */}
-        {map.connections.map((conn, idx) => {
-          const cityA = map.regions
+        {loadedMap.connections.map((conn, idx) => {
+          const cityA = loadedMap.regions
             .flatMap((r) => r.cities)
             .find((c) => c.id === conn.cityA);
-          const cityB = map.regions
+          const cityB = loadedMap.regions
             .flatMap((r) => r.cities)
             .find((c) => c.id === conn.cityB);
 
           if (!cityA || !cityB) return null;
 
-          const x1 = ((cityOverrides[cityA.id]?.x ?? cityA.x) / 100) * map.width;
-          const y1 = ((cityOverrides[cityA.id]?.y ?? cityA.y) / 100) * map.height;
-          const x2 = ((cityOverrides[cityB.id]?.x ?? cityB.x) / 100) * map.width;
-          const y2 = ((cityOverrides[cityB.id]?.y ?? cityB.y) / 100) * map.height;
+          const x1 = ((cityOverrides[cityA.id]?.x ?? cityA.x) / 100) * loadedMap.width;
+          const y1 = ((cityOverrides[cityA.id]?.y ?? cityA.y) / 100) * loadedMap.height;
+          const x2 = ((cityOverrides[cityB.id]?.x ?? cityB.x) / 100) * loadedMap.width;
+          const y2 = ((cityOverrides[cityB.id]?.y ?? cityB.y) / 100) * loadedMap.height;
 
           return (
             <line
@@ -317,12 +346,12 @@ export default function GameMapComponent({
         })}
 
         {/* Cities */}
-        {map.regions.flatMap((region) =>
+        {loadedMap.regions.flatMap((region) =>
           region.cities.map((city) => {
             const displayX = cityOverrides[city.id]?.x ?? city.x;
             const displayY = cityOverrides[city.id]?.y ?? city.y;
-            const x = (displayX / 100) * map.width;
-            const y = (displayY / 100) * map.height;
+            const x = (displayX / 100) * loadedMap.width;
+            const y = (displayY / 100) * loadedMap.height;
             const isSelected = selectedCities.includes(city.id);
             const isHovered = hoveredCity === city.id;
             const color = getCityColor(city.id);
@@ -494,4 +523,38 @@ export default function GameMapComponent({
       )}
     </div>
   );
+}
+
+/**
+ * Convert GameMapV2 (trace file format) to GameMap (legacy format for game logic)
+ */
+function convertGameMapV2ToGameMap(mapV2: GameMapV2): GameMap {
+  return {
+    id: mapV2.id,
+    name: mapV2.name,
+    width: mapV2.width,
+    height: mapV2.height,
+    regions: mapV2.regions.map(region => ({
+      id: region.id,
+      name: region.name,
+      cities: mapV2.cities
+        .filter(city => 
+          region.cityIds.includes((city as any).id)
+        )
+        .map(city => ({
+          id: (city as any).id,
+          name: city.name,
+          x: city.x,
+          y: city.y,
+          region: region.id,
+        })),
+      costMultiplier: 1.0,
+      regionColor: region.regionColor,
+    })),
+    connections: mapV2.connections.map(conn => ({
+      cityA: conn.cityA,
+      cityB: conn.cityB,
+    })),
+    countryOutline: mapV2.countryOutline,
+  } as any;
 }

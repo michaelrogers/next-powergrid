@@ -58,6 +58,7 @@ export interface GameState {
   phase: GamePhase;
   currentTurn?: string; // player id
   map: RegionMap | string; // region map name
+  mapId?: string; // ID for loading GameMapV2 from trace files
   gameMap?: GameMap; // detailed map object
   availablePowerPlants: PowerPlant[];
   fuelMarket: Record<FuelType, FuelMarketEntry[]>;

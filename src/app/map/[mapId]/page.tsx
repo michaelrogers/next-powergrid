@@ -13,7 +13,7 @@ export default function MapPage() {
   return (
     <main className="min-h-screen w-full p-6 bg-slate-900 flex items-center justify-center">
       <div className="w-full max-w-6xl h-[80vh] bg-slate-800 rounded-lg p-4">
-        <GameMapComponent map={map} players={[]} compact={false} />
+        <GameMapComponent map={map} mapId={mapId} players={[]} compact={false} />
       </div>
     </main>
   );

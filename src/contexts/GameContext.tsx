@@ -71,6 +71,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         phase: GamePhase.AUCTION,
         currentTurn: action.payload.players[0]?.id,
         map: mapName,
+        mapId: mapName, // Store map ID for loading GameMapV2 for Voronoi rendering
         gameMap: gameMap || USA_MAP,
         availablePowerPlants: powerPlants,
         fuelMarket: {

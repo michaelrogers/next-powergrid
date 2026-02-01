@@ -3,10 +3,10 @@ import { join } from 'path';
 
 export async function GET(
   request: Request,
-  { params }: { params: { mapId: string } }
+  { params }: { params: Promise<{ mapId: string }> }
 ) {
   try {
-    const mapId = params.mapId;
+    const { mapId } = await params;
     const filePath = join(process.cwd(), 'map-traces', `${mapId}-cities.json`);
     
     const fileContent = await readFile(filePath, 'utf-8');
