@@ -89,8 +89,11 @@ export default function GameMapComponent({
 
   // Load precomputed Voronoi regions
   useEffect(() => {
-    const regions = getVoronoiRegions(map.id);
-    setVoronoiRegions(regions);
+    const loadRegions = async () => {
+      const regions = await getVoronoiRegions(map.id);
+      setVoronoiRegions(regions);
+    };
+    loadRegions();
   }, [map.id]);
 
   // Get player color for a city

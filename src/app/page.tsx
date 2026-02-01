@@ -4,10 +4,9 @@ import { useGame } from '@/contexts/GameContext';
 import GameBoard from '@/components/GameBoard';
 import GameMapComponent from '@/components/GameMap';
 import { MAPS } from '@/lib/mapData';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Player, GameConfig } from '@/types/game';
-import { GameMap } from '@/lib/mapData';
 
 function GameSetup() {
   const { dispatch } = useGame();
@@ -16,40 +15,6 @@ function GameSetup() {
   const [robotDifficulty, setRobotDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [selectedMap, setSelectedMap] = useState<'usa' | 'germany' | 'france'>('usa');
   const [selectedPreview, setSelectedPreview] = useState<string | null>(null);
-  const [mapsData, setMapsData] = useState<Record<string, GameMap>>(MAPS);
-  const [isLoadingMaps, setIsLoadingMaps] = useState(true);
-
-  // Load updated maps from the editor API on mount
-  useEffect(() => {
-    const loadMaps = async () => {
-      try {
-        const mapIds = ['usa', 'germany', 'france'];
-        const loadedMaps: Record<string, GameMap> = { ...MAPS };
-
-        for (const mapId of mapIds) {
-          try {
-            const response = await fetch(`/api/cities?mapId=${mapId}`);
-            if (response.ok) {
-              const data = await response.json();
-              if (data.ok && data.data) {
-                // The API returns cities data; for now use hardcoded maps
-                // since the full map data transformation happens in GameContext
-              }
-            }
-          } catch (err) {
-            console.error(`Failed to load map ${mapId}:`, err);
-            // Fall back to hardcoded maps
-          }
-        }
-
-        setMapsData(loadedMaps);
-      } finally {
-        setIsLoadingMaps(false);
-      }
-    };
-
-    loadMaps();
-  }, []);
 
   const handleStartGame = () => {
     let totalPlayers = playerCount;
@@ -190,7 +155,7 @@ function GameSetup() {
           {/* Map Preview - minimal: only country outline and stats */}
           <div className="mb-4">
             {(() => {
-              const mapObj = mapsData[selectedMap];
+              const mapObj = MAPS[selectedMap];
               const cityCount = mapObj.regions.flatMap((r) => r.cities).length;
               return (
                 <div
@@ -198,7 +163,7 @@ function GameSetup() {
                   onClick={() => setSelectedPreview(selectedMap)}
                 >
                   <div className="w-full h-full block">
-                    <GameMapComponent map={mapsData[selectedMap]} players={[]} compact />
+                    <GameMapComponent map={MAPS[selectedMap]} players={[]} compact />
                   </div>
                   <div className="mt-2 text-xs text-gray-300 text-center">
                     {mapObj.name} • {mapObj.regions.length} regions • {cityCount} cities
@@ -219,7 +184,7 @@ function GameSetup() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-white font-bold">{mapsData[selectedPreview].name}</h2>
+                  <h2 className="text-white font-bold">{MAPS[selectedPreview].name}</h2>
                   <button
                     className="text-gray-300 hover:text-white"
                     onClick={() => setSelectedPreview(null)}
@@ -228,7 +193,7 @@ function GameSetup() {
                   </button>
                 </div>
                 <div className="w-full h-full">
-                  <GameMapComponent map={mapsData[selectedPreview]} players={[]} compact={false} />
+                  <GameMapComponent map={MAPS[selectedPreview]} players={[]} compact={false} />
                 </div>
               </div>
             </div>

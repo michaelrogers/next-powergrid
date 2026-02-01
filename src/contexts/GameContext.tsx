@@ -5,101 +5,13 @@
 
 'use client';
 
-import React, { createContext, useContext, useReducer, ReactNode, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { GameState, GamePhase, Player, GameConfig, RegionMap, FuelType } from '@/types/game';
 import { RobotAI } from '@/lib/robotAI';
 import { PowerGridEngine } from '@/lib/gameEngine';
-import { getMapByName, USA_MAP, MAPS, GameMap } from '@/lib/mapData';
-
-// Global cache for loaded maps from API
-const mapCache = new Map<string, GameMap>();
-
-async function loadMapFromAPI(mapId: string): Promise<GameMap | null> {
-  if (mapCache.has(mapId)) {
-    return mapCache.get(mapId) || null;
-  }
-
-  try {
-    const response = await fetch(`/api/cities?mapId=${mapId}`);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.ok && data.data) {
-        // Transform API data into GameMap format
-        const citiesPayload = data.data;
-        const gameMap = transformCitiesToGameMap(mapId, citiesPayload, MAPS[mapId.toLowerCase()]);
-        if (gameMap) {
-          mapCache.set(mapId, gameMap);
-          return gameMap;
-        }
-      }
-    }
-  } catch (err) {
-    console.error(`Failed to load map ${mapId} from API:`, err);
-  }
-  return null;
-}
-
-// Transform API cities data into GameMap format
-function transformCitiesToGameMap(mapId: string, payload: any, fallbackMap?: GameMap): GameMap | null {
-  if (!payload || !payload.regions || !payload.cities) {
-    return fallbackMap || null;
-  }
-
-  try {
-    // Reconstruct cities with region info
-    const citiesById = new Map<string, any>();
-    payload.cities.forEach((city: any) => {
-      citiesById.set(city.id, city);
-    });
-
-    // Build regions with their cities
-    const regions = payload.regions.map((region: any) => {
-      const regionCities = (region.cityIds || [])
-        .map((cityId: string) => {
-          const city = citiesById.get(cityId);
-          if (!city) return null;
-          return {
-            id: city.id,
-            name: city.name,
-            x: city.x,
-            y: city.y,
-            region: region.id,
-          };
-        })
-        .filter(Boolean);
-
-      return {
-        id: region.id,
-        name: region.name,
-        costMultiplier: region.costMultiplier || 1.0,
-        regionColor: region.regionColor,
-        regionOutline: region.regionOutline,
-        adjacencies: region.adjacencies,
-        cities: regionCities,
-      };
-    });
-
-    const gameMap: GameMap = {
-      id: mapId,
-      name: fallbackMap?.name || 'Map',
-      width: fallbackMap?.width || 1000,
-      height: fallbackMap?.height || 600,
-      regions,
-      connections: payload.connections || [],
-      countryOutline: fallbackMap?.countryOutline,
-    };
-
-    return gameMap;
-  } catch (err) {
-    console.error(`Failed to transform cities data for ${mapId}:`, err);
-    return fallbackMap || null;
-  }
-}
-
-export async function ensureMapLoaded(mapId: string): Promise<GameMap> {
-  const loadedMap = await loadMapFromAPI(mapId);
-  return loadedMap || MAPS[mapId.toLowerCase()] || USA_MAP;
-}
+import { getCachedMap } from '@/lib/mapCache';
+import { getMapByName, USA_MAP } from '@/lib/mapData';
+import type { GameMapV2 } from '@/lib/mapDataV2';
 
 interface GameContextType {
   state: GameState;
@@ -119,8 +31,7 @@ export type GameAction =
   | { type: 'END_ROUND' }
   | { type: 'RESET_GAME' }
   | { type: 'SET_CURRENT_TURN'; payload: { playerId: string } }
-  | { type: 'ROBOT_TURN'; payload: { playerId: string } }
-  | { type: 'SET_GAME_MAP'; payload: { gameMap: GameMap } };
+  | { type: 'ROBOT_TURN'; payload: { playerId: string } };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -146,8 +57,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const mapName = typeof action.payload.config.map === 'string' 
         ? action.payload.config.map 
         : 'usa';
-      // Use cached map if available, otherwise fall back to hardcoded
-      const gameMap = mapCache.get(mapName) || getMapByName(mapName) || USA_MAP;
+      
+      // Use the preloaded game map (which was set asynchronously)
+      // If not available yet, fallback to old map system
+      const gameMap = (action.payload as any).gameMap;
+      
       const powerPlants = PowerGridEngine.createPowerPlants();
       
       return {
@@ -157,7 +71,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         phase: GamePhase.AUCTION,
         currentTurn: action.payload.players[0]?.id,
         map: mapName,
-        gameMap,
+        gameMap: gameMap || USA_MAP,
         availablePowerPlants: powerPlants,
         fuelMarket: {
           coal: Array.from({ length: 18 }, (_, i) => ({ price: 3 + Math.floor(i / 3), quantity: 1 })),
@@ -324,13 +238,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return state;
     }
 
-    case 'SET_GAME_MAP': {
-      return {
-        ...state,
-        gameMap: action.payload.gameMap,
-      };
-    }
-
     case 'RESET_GAME':
       return initialGameState;
 
@@ -341,35 +248,101 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialGameState);
-  const loadedMapsRef = useRef<Set<string>>(new Set());
+  const [pendingInit, setPendingInit] = React.useState<{ config: GameConfig; players: Player[] } | null>(null);
 
-  // Preload maps from API on mount
+  // Handle async map loading before game initialization
   useEffect(() => {
-    const preloadMaps = async () => {
-      const mapIds = ['usa', 'germany', 'france'];
+    if (!pendingInit) return;
+
+    const loadAndInitialize = async () => {
+      const mapName = typeof pendingInit.config.map === 'string' 
+        ? pendingInit.config.map 
+        : 'usa';
       
-      for (const mapId of mapIds) {
-        if (!loadedMapsRef.current.has(mapId)) {
-          try {
-            const loadedMap = await loadMapFromAPI(mapId);
-            if (loadedMap) {
-              loadedMapsRef.current.add(mapId);
-            }
-          } catch (err) {
-            console.error(`Failed to preload map ${mapId}:`, err);
-          }
-        }
-      }
+      // Load map from trace files
+      const mapV2 = await getCachedMap(mapName);
+      
+      // Convert GameMapV2 to GameMap format for compatibility
+      const gameMap = mapV2 ? convertGameMapV2ToGameMap(mapV2) : (getMapByName(mapName) || USA_MAP);
+      
+      // Now dispatch with the loaded map
+      dispatch({ 
+        type: 'INITIALIZE_GAME', 
+        payload: { 
+          config: pendingInit.config, 
+          players: pendingInit.players,
+          gameMap, // Pass the loaded map
+        } as any
+      });
+      
+      setPendingInit(null);
     };
 
-    preloadMaps();
+    loadAndInitialize();
+  }, [pendingInit]);
+
+  // Expose a function to start initialization with async map loading
+  const dispatchWithMapLoading = React.useCallback((action: GameAction) => {
+    if (action.type === 'INITIALIZE_GAME') {
+      // Store pending init and let useEffect handle async loading
+      setPendingInit({
+        config: action.payload.config,
+        players: action.payload.players,
+      });
+    } else {
+      dispatch(action);
+    }
   }, []);
 
   return (
-    <GameContext.Provider value={{ state, dispatch }}>
+    <GameContext.Provider value={{ state, dispatch: dispatchWithMapLoading }}>
       {children}
     </GameContext.Provider>
   );
+}
+
+/**
+ * Convert GameMapV2 (from trace files) to GameMap (for game logic)
+ */
+function convertGameMapV2ToGameMap(mapV2: GameMapV2): typeof USA_MAP {
+  const mapDimensions = {
+    usa: { width: 1000, height: 600 },
+    germany: { width: 800, height: 600 },
+    france: { width: 800, height: 700 },
+  } as const;
+  
+  const dims = mapDimensions[mapV2.id as keyof typeof mapDimensions] || { width: 1000, height: 600 };
+
+  return {
+    id: mapV2.id,
+    name: mapV2.name,
+    width: dims.width,
+    height: dims.height,
+    regions: mapV2.regions.map(region => ({
+      id: region.id,
+      name: region.name,
+      cities: mapV2.cities
+        .filter(city => 
+          mapV2.regions
+            .find(r => r.id === region.id)
+            ?.cityIds.includes((city as any).id)
+        )
+        .map(city => ({
+          id: (city as any).id,
+          name: city.name,
+          x: city.x,
+          y: city.y,
+          region: region.id,
+        })),
+      costMultiplier: 1.0,
+      regionColor: region.regionColor,
+    })),
+    connections: mapV2.connections.map(conn => ({
+      cityA: conn.cityA,
+      cityB: conn.cityB,
+    })),
+    countryOutline: mapV2.countryOutline,
+  } as any;
 }
 
 export function useGame() {

@@ -234,10 +234,10 @@ function computeCellBoundaryPath(cellPolygon: Point[], otherCellsInRegion: Point
 }
 
 export function renderRegionsWithVoronoi(map: GameMapV2, boundaryPolygon?: Array<{x: number, y: number}> | null): RenderedRegion[] {
-  const seeds = map.cities.map(city => ({
+  const seeds = map.cities.map((city, idx) => ({
     x: city.x,
     y: city.y,
-    id: city.id,
+    id: city.id || `city_${idx}`,
   }));
 
   // Generate Voronoi diagram from all cities

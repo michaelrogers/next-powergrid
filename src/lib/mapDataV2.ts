@@ -9,14 +9,15 @@
  */
 
 export interface CityDefinition {
+  id?: string; // Optional - can be provided separately
   name: string;
   x: number; // percentage 0-100
   y: number; // percentage 0-100
 }
 
 export interface RegionDefinition {
-  id: string;
-  name: string;
+  id?: string;
+  name?: string;
   regionColor: string;
   cityIds: string[]; // Cities that seed this region's Voronoi cell
 }
@@ -38,238 +39,40 @@ export interface GameMapV2 {
   countryOutline?: string;
 }
 
-// USA Map - V2 architecture
+// NOTE: Hardcoded maps are deprecated. Maps are now loaded from trace files via loadMapFromTrace()
+// These exports are kept for backward compatibility but should not be used for new code.
+
+// Placeholder for USA map - actual data loaded from trace file
 export const USA_MAP_V2: GameMapV2 = {
   id: 'usa',
   name: 'United States',
   width: 1000,
   height: 600,
-  cities: [
-    // Northeast cities
-    { id: 'boston', name: 'Boston', x: 85, y: 32 },
-    { id: 'newyork', name: 'New York', x: 83, y: 35 },
-    { id: 'buffalo', name: 'Buffalo', x: 77, y: 31 },
-    { id: 'philadelphia', name: 'Philadelphia', x: 82, y: 38 },
-    { id: 'pittsburgh', name: 'Pittsburgh', x: 74, y: 38 },
-    { id: 'washington', name: 'Washington', x: 78, y: 42 },
-    { id: 'norfolk', name: 'Norfolk', x: 81, y: 45 },
-    
-    // Midwest cities
-    { id: 'minneapolis', name: 'Minneapolis', x: 52, y: 25 },
-    { id: 'chicago', name: 'Chicago', x: 62, y: 33 },
-    { id: 'detroit', name: 'Detroit', x: 68, y: 31 },
-    { id: 'stlouis', name: 'St. Louis', x: 56, y: 42 },
-    
-    // South cities
-    { id: 'atlanta', name: 'Atlanta', x: 68, y: 52 },
-    { id: 'houston', name: 'Houston', x: 48, y: 62 },
-    { id: 'dallas', name: 'Dallas', x: 47, y: 54 },
-    { id: 'neworleans', name: 'New Orleans', x: 56, y: 63 },
-    
-    // West cities
-    { id: 'seattle', name: 'Seattle', x: 18, y: 24 },
-    { id: 'portland', name: 'Portland', x: 17, y: 28 },
-    { id: 'sanfrancisco', name: 'San Francisco', x: 16, y: 44 },
-    { id: 'losangeles', name: 'Los Angeles', x: 20, y: 52 },
-    { id: 'lasvegas', name: 'Las Vegas', x: 25, y: 46 },
-    { id: 'denver', name: 'Denver', x: 35, y: 38 },
-  ],
-  regions: [
-    {
-      name: 'Northeast',
-      regionColor: '#60a5fa',
-      cityIds: ['boston', 'newyork', 'buffalo', 'philadelphia', 'pittsburgh', 'washington', 'norfolk'],
-    },
-    {
-      id: 'midwest',
-      regionColor: '#f59e0b',
-      cityIds: ['minneapolis', 'chicago', 'detroit', 'stlouis'],
-    },
-    {
-      id: 'south',
-      name: 'South',
-      regionColor: '#10b981',
-      cityIds: ['atlanta', 'houston', 'dallas', 'neworleans'],
-    },
-    {
-      id: 'west',
-      regionColor: '#ef4444',
-      cityIds: ['seattle', 'portland', 'sanfrancisco', 'losangeles', 'lasvegas', 'denver'],
-    },
-  ],
-  connections: [
-    // Northeast connections
-    { cityA: 'newyork', cityB: 'philadelphia' },
-    { cityA: 'philadelphia', cityB: 'washington' },
-    { cityA: 'pittsburgh', cityB: 'philadelphia' },
-    { cityA: 'buffalo', cityB: 'newyork' },
-    { cityA: 'norfolk', cityB: 'washington' },
-
-    // Midwest connections
-    { cityA: 'minneapolis', cityB: 'chicago' },
-    { cityA: 'chicago', cityB: 'detroit' },
-    { cityA: 'chicago', cityB: 'stlouis' },
-    { cityA: 'detroit', cityB: 'newyork' },
-
-    // East-West connections
-    { cityA: 'stlouis', cityB: 'dallas' },
-    { cityA: 'chicago', cityB: 'washington' },
-    { cityA: 'pittsburgh', cityB: 'chicago' },
-
-    // South connections
-    { cityA: 'stlouis', cityB: 'atlanta' },
-    { cityA: 'atlanta', cityB: 'neworleans' },
-    { cityA: 'dallas', cityB: 'houston' },
-    { cityA: 'houston', cityB: 'neworleans' },
-
-    // West connections
-    { cityA: 'seattle', cityB: 'portland' },
-    { cityA: 'portland', cityB: 'sanfrancisco' },
-    { cityA: 'sanfrancisco', cityB: 'losangeles' },
-    { cityA: 'losangeles', cityB: 'lasvegas' },
-    { cityA: 'denver', cityB: 'lasvegas' },
-    { cityA: 'denver', cityB: 'dallas' },
-    { cityA: 'denver', cityB: 'sanfrancisco' },
-  ],
+  cities: [],
+  regions: [],
+  connections: [],
 };
 
+// Placeholder for Germany map - actual data loaded from trace file
 export const GERMANY_MAP_V2: GameMapV2 = {
   id: 'germany',
   name: 'Germany',
   width: 800,
   height: 600,
-  cities: [
-    // North
-    { id: 'hamburg', name: 'Hamburg', x: 48, y: 22 },
-    { id: 'kiel', name: 'Kiel', x: 48, y: 15 },
-    { id: 'lueneburg', name: 'Lüneburg', x: 52, y: 24 },
-
-    // West
-    { id: 'cologne', name: 'Cologne', x: 32, y: 45 },
-    { id: 'aachen', name: 'Aachen', x: 28, y: 45 },
-    { id: 'koblenz', name: 'Koblenz', x: 35, y: 48 },
-
-    // Central
-    { id: 'frankfurt', name: 'Frankfurt', x: 42, y: 48 },
-
-    // East
-    { id: 'berlin', name: 'Berlin', x: 62, y: 30 },
-    { id: 'leipzig', name: 'Leipzig', x: 58, y: 44 },
-    { id: 'dresden', name: 'Dresden', x: 64, y: 45 },
-
-    // South
-    { id: 'nuremberg', name: 'Nuremberg', x: 52, y: 60 },
-    { id: 'munich', name: 'Munich', x: 52, y: 72 },
-  ],
-  regions: [
-    {
-      name: 'North',
-      costMultiplier: 1.0,
-      regionColor: '#60a5fa',
-      cityIds: ['hamburg', 'kiel', 'lueneburg'],
-    },
-    {
-      id: 'west',
-      costMultiplier: 1.1,
-      regionColor: '#ef4444',
-      cityIds: ['cologne', 'aachen', 'koblenz'],
-    },
-    {
-      id: 'central',
-      costMultiplier: 1.05,
-      regionColor: '#10b981',
-      cityIds: ['frankfurt'],
-    },
-    {
-      id: 'east',
-      name: 'East',
-      costMultiplier: 0.95,
-      regionColor: '#f59e0b',
-      cityIds: ['berlin', 'leipzig', 'dresden'],
-    },
-    {
-      id: 'south',
-      name: 'South',
-      costMultiplier: 1.15,
-      regionColor: '#8b5cf6',
-      cityIds: ['nuremberg', 'munich'],
-    },
-  ],
-  connections: [
-    { cityA: 'hamburg', cityB: 'kiel' },
-    { cityA: 'hamburg', cityB: 'berlin' },
-    { cityA: 'berlin', cityB: 'leipzig' },
-    { cityA: 'leipzig', cityB: 'dresden' },
-    { cityA: 'cologne', cityB: 'aachen' },
-    { cityA: 'cologne', cityB: 'frankfurt' },
-    { cityA: 'frankfurt', cityB: 'nuremberg' },
-    { cityA: 'nuremberg', cityB: 'munich' },
-    { cityA: 'leipzig', cityB: 'nuremberg' },
-  ],
+  cities: [],
+  regions: [],
+  connections: [],
 };
 
-// France Map - V2
+// Placeholder for France map - actual data loaded from trace file
 export const FRANCE_MAP_V2: GameMapV2 = {
   id: 'france',
   name: 'France',
   width: 800,
   height: 700,
-  cities: [
-    { id: 'amiens', name: 'Amiens', x: 48, y: 26 },
-    { id: 'paris', name: 'Paris', x: 46, y: 32 },
-    { id: 'orleans', name: 'Orléans', x: 44, y: 40 },
-    { id: 'strasbourg', name: 'Strasbourg', x: 68, y: 35 },
-    { id: 'bordeaux', name: 'Bordeaux', x: 32, y: 58 },
-    { id: 'lyon', name: 'Lyon', x: 56, y: 52 },
-    { id: 'marseille', name: 'Marseille', x: 58, y: 68 },
-  ],
-  regions: [
-    {
-      id: 'nord',
-      name: 'Nord',
-      costMultiplier: 1.1,
-      regionColor: '#60a5fa',
-      cityIds: ['amiens'],
-    },
-    {
-      id: 'paris',
-      name: 'Paris',
-      costMultiplier: 1.2,
-      regionColor: '#34d399',
-      cityIds: ['paris', 'orleans'],
-    },
-    {
-      id: 'east',
-      name: 'Est',
-      costMultiplier: 1.05,
-      regionColor: '#fbbf24',
-      cityIds: ['strasbourg'],
-    },
-    {
-      id: 'west',
-      name: 'Ouest',
-      costMultiplier: 0.95,
-      regionColor: '#f87171',
-      cityIds: ['bordeaux'],
-    },
-    {
-      id: 'south',
-      name: 'Midi',
-      costMultiplier: 1.0,
-      regionColor: '#a78bfa',
-      cityIds: ['lyon', 'marseille'],
-    },
-  ],
-  connections: [
-    { cityA: 'amiens', cityB: 'paris' },
-    { cityA: 'paris', cityB: 'orleans' },
-    { cityA: 'paris', cityB: 'strasbourg' },
-    { cityA: 'paris', cityB: 'bordeaux' },
-    { cityA: 'orleans', cityB: 'lyon' },
-    { cityA: 'bordeaux', cityB: 'lyon' },
-    { cityA: 'lyon', cityB: 'marseille' },
-    { cityA: 'lyon', cityB: 'strasbourg' },
-  ],
+  cities: [],
+  regions: [],
+  connections: [],
 };
 
 export const MAPS_V2: Record<string, GameMapV2> = {
@@ -308,13 +111,15 @@ export function computeRegionAdjacencies(map: GameMapV2): Record<string, string[
   const adjacencies: Record<string, string[]> = {};
 
   for (const region of map.regions) {
+    if (!region.id) continue; // Skip regions without ID
+    
     const neighbors = new Set<string>();
     const regionCities = getCitiesInRegionV2(map, region.id);
 
     // For each city in this region, find nearest cities in other regions
     for (const city of regionCities) {
       for (const otherRegion of map.regions) {
-        if (otherRegion.id === region.id) continue;
+        if (!otherRegion.id || otherRegion.id === region.id) continue;
 
         const otherCities = getCitiesInRegionV2(map, otherRegion.id);
         for (const otherCity of otherCities) {
@@ -330,4 +135,82 @@ export function computeRegionAdjacencies(map: GameMapV2): Record<string, string[
   }
 
   return adjacencies;
+}
+
+/**
+ * Load map data from trace files (created by map editor)
+ * This loads the authoritative editor-generated data instead of hardcoded maps
+ */
+export async function loadMapFromTrace(mapId: string): Promise<GameMapV2 | null> {
+  try {
+    const response = await fetch(`/api/map-trace/${mapId}`);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    
+    // Transform trace data to GameMapV2 format
+    const mapDimensions = {
+      usa: { width: 1000, height: 600 },
+      germany: { width: 800, height: 600 },
+      france: { width: 800, height: 700 },
+    } as const;
+    
+    const dims = mapDimensions[mapId as keyof typeof mapDimensions] || { width: 1000, height: 600 };
+    const mapNames: Record<string, string> = {
+      usa: 'United States',
+      germany: 'Germany',
+      france: 'France',
+    };
+    
+    // Convert cities array (with id property added back)
+    const cities: CityDefinition[] = (data.cities || []).map((city: any) => ({
+      name: city.name,
+      x: city.x,
+      y: city.y,
+    }));
+    
+    // Add id to cities from the incoming data
+    const citiesWithIds = (data.cities || []).map((city: any, idx: number) => ({
+      id: city.id || `city_${idx}`,
+      name: city.name,
+      x: city.x,
+      y: city.y,
+    }));
+    
+    // Convert regions (ensure id field is present)
+    const regions: RegionDefinition[] = (data.regions || []).map((region: any) => ({
+      id: region.id || region.name?.toLowerCase().replace(/\s+/g, '-'),
+      name: region.name,
+      regionColor: region.regionColor || '#60a5fa',
+      cityIds: region.cityIds || [],
+    }));
+    
+    const gameMap: GameMapV2 = {
+      id: mapId,
+      name: mapNames[mapId] || data.name || mapId,
+      width: dims.width,
+      height: dims.height,
+      cities: citiesWithIds,
+      regions: regions,
+      connections: data.connections || [],
+      countryOutline: data.countryOutline,
+    };
+    
+    return gameMap;
+  } catch (error) {
+    console.error(`Failed to load map trace for ${mapId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get map from trace files, with fallback to hardcoded maps
+ */
+export async function getMapByIdWithTrace(mapId: string): Promise<GameMapV2> {
+  // Try to load from trace files first
+  const mapFromTrace = await loadMapFromTrace(mapId);
+  if (mapFromTrace) return mapFromTrace;
+  
+  // Fallback to hardcoded maps
+  return MAPS_V2[mapId] || USA_MAP_V2;
 }

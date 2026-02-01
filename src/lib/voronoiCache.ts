@@ -4,7 +4,8 @@
  */
 
 import { renderRegionsWithVoronoi, RenderedRegion } from './voronoiRegionRenderer';
-import { MAPS_V2 } from './mapDataV2';
+import { getCachedMap, getAllMaps } from './mapCache';
+import type { GameMapV2 } from './mapDataV2';
 
 type VoronoiCache = Record<string, RenderedRegion[]>;
 
@@ -14,16 +15,19 @@ let voronoiCache: VoronoiCache = {};
  * Initialize the Voronoi cache for all maps
  * Call this once at application startup
  */
-export function initializeVoronoiCache(): void {
+export async function initializeVoronoiCache(): Promise<void> {
   if (Object.keys(voronoiCache).length > 0) {
     return; // Already initialized
   }
 
-  for (const [mapId, map] of Object.entries(MAPS_V2)) {
-    try {
-      voronoiCache[mapId] = renderRegionsWithVoronoi(map);
-    } catch (err) {
-      console.error(`Failed to generate Voronoi for ${mapId}:`, err);
+  const maps = await getAllMaps();
+  for (const [mapId, map] of Object.entries(maps)) {
+    if (map) {
+      try {
+        voronoiCache[mapId] = renderRegionsWithVoronoi(map);
+      } catch (err) {
+        console.error(`Failed to generate Voronoi for ${mapId}:`, err);
+      }
     }
   }
 }
@@ -31,10 +35,10 @@ export function initializeVoronoiCache(): void {
 /**
  * Get precomputed Voronoi regions for a map
  */
-export function getVoronoiRegions(mapId: string): RenderedRegion[] | null {
+export async function getVoronoiRegions(mapId: string): Promise<RenderedRegion[] | null> {
   if (!voronoiCache[mapId]) {
     // Lazy initialize if not already done
-    const map = MAPS_V2[mapId as keyof typeof MAPS_V2];
+    const map = await getCachedMap(mapId);
     if (map) {
       try {
         voronoiCache[mapId] = renderRegionsWithVoronoi(map);

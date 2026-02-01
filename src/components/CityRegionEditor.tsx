@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { MAPS_V2, type GameMapV2, type RegionDefinition } from '@/lib/mapDataV2';
+import { getCachedMap, type GameMapV2, type RegionDefinition } from '@/lib/mapDataV2';
 import { renderRegionsWithVoronoi } from '@/lib/voronoiRegionRenderer';
 import { buildOutlinePath, buildOutlinePoints, getPolygonsFromGeoJson, selectBestPolygon } from '@/lib/geojsonOutline';
 import { getVoronoiRegions } from '@/lib/voronoiCache';
@@ -34,13 +34,41 @@ type Props = {
 export default function CityRegionEditor({ mapId }: Props) {
   const normalizedId = typeof mapId === 'string' ? mapId.trim().toLowerCase() : '';
   const [resolvedMapId, setResolvedMapId] = useState<string>(normalizedId);
+  const [mapData, setMapData] = useState<GameMapV2 | null>(null);
+  const [loading, setLoading] = useState(true);
   
-  const map = MAPS_V2[resolvedMapId as keyof typeof MAPS_V2];
+  // Load map from cache
+  useEffect(() => {
+    const loadMap = async () => {
+      try {
+        const map = await getCachedMap(normalizedId);
+        setMapData(map);
+      } catch (error) {
+        console.error('Failed to load map:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (normalizedId) {
+      loadMap();
+    }
+  }, [normalizedId]);
   
   // State
-  const [cities, setCities] = useState(map?.cities || []);
-  const [regions, setRegions] = useState(map?.regions || []);
-  const [connections, setConnections] = useState(map?.connections || []);
+  const [cities, setCities] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
+  const [connections, setConnections] = useState([]);
+  
+  // Initialize state from loaded map
+  useEffect(() => {
+    if (mapData) {
+      setCities(mapData.cities || []);
+      setRegions(mapData.regions || []);
+      setConnections(mapData.connections || []);
+    }
+  }, [mapData]);
+  
   const [newCityName, setNewCityName] = useState('');
   const [newCityId, setNewCityId] = useState('');
   const [newCityRegionId, setNewCityRegionId] = useState('');
@@ -55,99 +83,42 @@ export default function CityRegionEditor({ mapId }: Props) {
   const [isNewRegionIdManual, setIsNewRegionIdManual] = useState(false);
   const [selectedConnectionIdx, setSelectedConnectionIdx] = useState<number | null>(null);
   const connectionInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
-  
-  // Sync cities and regions when map changes
-  useEffect(() => {
-    if (map) {
-      setCities(map.cities);
-      setRegions(map.regions);
-      setConnections(map.connections);
-    }
-  }, [map]);
-
-  // Load saved cities from map trace file if available
-  useEffect(() => {
-    if (!map) return;
-    let cancelled = false;
-
-    async function loadSavedCities() {
-      try {
-        const resp = await fetch(`/api/cities?mapId=${map.id}`);
-        if (!resp.ok) return; // No saved cities yet, use defaults
-        const payload = await resp.json();
-        if (payload.ok && payload.data?.cities && !cancelled) {
-          setCities(payload.data.cities);
-          if (payload.data?.regions?.length) {
-            setRegions(payload.data.regions);
-          }
-          if (payload.data?.connections?.length) {
-            setConnections(payload.data.connections);
-          }
-        }
-      } catch (err) {
-        // ignore - use default cities
-      }
-    }
-
-    loadSavedCities();
-    return () => {
-      cancelled = true;
-    };
-  }, [map]);
-  
-  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
-  const [draggedCityId, setDraggedCityId] = useState<string | null>(null);
-  const [showCountryOutline, setShowCountryOutline] = useState(true);
-  const [countryOutlinePath, setCountryOutlinePath] = useState<string | null>(null);
-  
-  // Zoom and pan
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [spacePressed, setSpacePressed] = useState(false);
-  const panStart = useRef<{ x: number; y: number } | null>(null);
-  const svgRef = useRef<SVGSVGElement | null>(null);
-  const [boundaryPolygon, setBoundaryPolygon] = useState<Array<{x: number, y: number}> | null>(null);
-  const [citiesOutsideBorder, setCitiesOutsideBorder] = useState<Set<string>>(new Set());
-  const cityIdManualRef = useRef<Set<string>>(new Set());
-  const regionIdManualRef = useRef<Set<string>>(new Set());
-  const regionStableKeyRef = useRef<Map<string, string>>(new Map());
-  const stableKeyCounterRef = useRef(0);
-  
-  // Voronoi regions - computed asynchronously to avoid blocking render
-  const [renderedRegions, setRenderedRegions] = useState<ReturnType<typeof renderRegionsWithVoronoi>>([]);
 
   // Load cached Voronoi visualization on map load
   useEffect(() => {
-    if (!map) return;
+    if (!mapData) return;
     
-    const cachedRegions = getVoronoiRegions(map.id);
-    if (cachedRegions) {
-      setRenderedRegions(cachedRegions);
-    }
-  }, [map?.id]); // Only depend on map ID, not the entire map object
+    const loadVoronoi = async () => {
+      const cachedRegions = await getVoronoiRegions(mapData.id);
+      if (cachedRegions) {
+        setRenderedRegions(cachedRegions);
+      }
+    };
+    
+    loadVoronoi();
+  }, [mapData?.id]);
 
   // Load country outline
   useEffect(() => {
-    if (!map) return;
+    if (!mapData) return;
     let cancelled = false;
 
     async function loadOutline() {
       try {
-        const resp = await fetch(`/maps/${map.id}.geo.json`);
+        const resp = await fetch(`/maps/${mapData.id}.geo.json`);
         if (!resp.ok) return;
         const geo: GeoJson = await resp.json();
         const polygons = getPolygonsFromGeoJson(geo);
         
         // Select the best polygon (mainland, not islands)
-        const selectedPolygon = selectBestPolygon(polygons, map.id);
+        const selectedPolygon = selectBestPolygon(polygons, mapData.id);
         if (selectedPolygon) {
-          const outline = buildOutlinePath(selectedPolygon, map.id);
+          const outline = buildOutlinePath(selectedPolygon, mapData.id);
           if (!cancelled) {
             setCountryOutlinePath(outline);
             
             // Convert boundary to percentage coordinates for visual clipping
-            const boundaryPoints = buildOutlinePoints(selectedPolygon, map.id);
+            const boundaryPoints = buildOutlinePoints(selectedPolygon, mapData.id);
             setBoundaryPolygon(boundaryPoints);
           }
         }
@@ -158,7 +129,7 @@ export default function CityRegionEditor({ mapId }: Props) {
 
     loadOutline();
     return () => { cancelled = true; };
-  }, [map]);
+  }, [mapData]);
 
   // Compute Voronoi regions asynchronously after cities/regions change - debounced
   // This recalculates only when user edits cities or regions
@@ -196,28 +167,28 @@ export default function CityRegionEditor({ mapId }: Props) {
 
   // SVG coordinate helpers - memoized (MUST be before early return)
   const toScreen = useCallback((pt: { x: number; y: number }) => ({
-    x: (pt.x / 100) * (map?.width || 800),
-    y: (pt.y / 100) * (map?.height || 600),
-  }), [map?.width, map?.height]);
+    x: (pt.x / 100) * (mapData?.width || 800),
+    y: (pt.y / 100) * (mapData?.height || 600),
+  }), [mapData?.width, mapData?.height]);
 
   const toMap = useCallback((screenPt: { x: number; y: number }) => {
     const svg = svgRef.current;
-    if (!svg || !map) return screenPt;
+    if (!svg || !mapData) return screenPt;
 
     const rect = svg.getBoundingClientRect();
     // Convert screen coordinates to SVG viewBox coordinates
-    const svgX = ((screenPt.x - rect.left) / rect.width) * map.width;
-    const svgY = ((screenPt.y - rect.top) / rect.height) * map.height;
+    const svgX = ((screenPt.x - rect.left) / rect.width) * mapData.width;
+    const svgY = ((screenPt.y - rect.top) / rect.height) * mapData.height;
     
     // Account for zoom and pan transformations
     const x = (svgX - pan.x) / zoom;
     const y = (svgY - pan.y) / zoom;
 
     return {
-      x: clamp((x / map.width) * 100, 0, 100),
-      y: clamp((y / map.height) * 100, 0, 100),
+      x: clamp((x / mapData.width) * 100, 0, 100),
+      y: clamp((y / mapData.height) * 100, 0, 100),
     };
-  }, [map, zoom, pan.x, pan.y]);
+  }, [mapData, zoom, pan.x, pan.y]);
 
   // Memoize city region lookup to avoid repeated array.find()
   const cityRegionMap = useMemo(() => {
@@ -296,8 +267,8 @@ export default function CityRegionEditor({ mapId }: Props) {
     setCitiesOutsideBorder(outsideCities);
   }, [cities, boundaryPolygon, isPointInPolygon]);
 
-  if (!map) {
-    return <div className="p-4 text-red-500">Map not found: {resolvedMapId}</div>;
+  if (!mapData) {
+    return <div className="p-4 text-red-500">{loading ? 'Loading map...' : `Map not found: ${resolvedMapId}`}</div>;
   }
 
   // Event handlers
@@ -560,7 +531,7 @@ export default function CityRegionEditor({ mapId }: Props) {
       const resp = await fetch('/api/save-cities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mapId: map.id, cities, regions, connections }),
+        body: JSON.stringify({ mapId: mapData.id, cities, regions, connections }),
       });
       if (!resp.ok) {
         const error = await resp.text();
@@ -628,7 +599,7 @@ export default function CityRegionEditor({ mapId }: Props) {
           <div className="relative bg-black rounded-lg overflow-hidden" style={{ height: '100%' }}>
             <svg
               ref={svgRef}
-              viewBox={`0 0 ${map.width} ${map.height}`}
+              viewBox={`0 0 ${mapData.width} ${mapData.height}`}
               className="w-full h-full"
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -636,14 +607,14 @@ export default function CityRegionEditor({ mapId }: Props) {
               onPointerDown={handlePointerDown}
               onWheel={handleWheel as any}
             >
-              <rect width={map.width} height={map.height} fill="transparent" />
+              <rect width={mapData.width} height={mapData.height} fill="transparent" />
 
               {/* SVG clip path for country boundary */}
               {boundaryPolygon && boundaryPolygon.length > 0 && (
                 <defs>
                   <clipPath id="countryClip">
                     <path
-                      d={`M ${boundaryPolygon[0].x * (map.width / 100)} ${boundaryPolygon[0].y * (map.height / 100)} ${boundaryPolygon.map(p => `L ${p.x * (map.width / 100)} ${p.y * (map.height / 100)}`).join(' ')} Z`}
+                      d={`M ${boundaryPolygon[0].x * (mapData.width / 100)} ${boundaryPolygon[0].y * (mapData.height / 100)} ${boundaryPolygon.map(p => `L ${p.x * (mapData.width / 100)} ${p.y * (mapData.height / 100)}`).join(' ')} Z`}
                     />
                   </clipPath>
                 </defs>
@@ -653,7 +624,7 @@ export default function CityRegionEditor({ mapId }: Props) {
               <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`} clipPath="url(#countryClip)">
                 {/* Country outline */}
                 {showCountryOutline && countryOutlinePath && (
-                  <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+                  <g transform={`scale(${mapData.width / 100} ${mapData.height / 100})`}>
                     <path
                       d={countryOutlinePath}
                       fill="none"
