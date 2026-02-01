@@ -31,6 +31,7 @@ const buildMarkdown = (maps) => {
     lines.push('');
 
     const cities = Array.isArray(map.cities) ? map.cities : [];
+    const regions = Array.isArray(map.regions) ? map.regions : [];
     lines.push('### Cities');
     lines.push('');
     lines.push('| ID | Name | X | Y | Region |');
@@ -40,7 +41,6 @@ const buildMarkdown = (maps) => {
     }
     lines.push('');
 
-    const regions = Array.isArray(map.regions) ? map.regions : [];
     lines.push('### Regions');
     lines.push('');
     if (regions.length === 0) {
