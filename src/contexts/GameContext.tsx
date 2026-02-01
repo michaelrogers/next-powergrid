@@ -84,17 +84,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'START_AUCTION': {
-      const plant = state.availablePowerPlants.find(p => p.id === action.payload.plantId);
+      let plant = state.availablePowerPlants.find(p => p.id === action.payload.plantId);
+      
+      // If no specific plant, use first available
+      if (!plant && state.availablePowerPlants.length > 0) {
+        plant = state.availablePowerPlants[0];
+      }
+      
       if (!plant) return state;
+      
+      // Initialize auction with all players as participants
+      const participants = new Set(state.players.map(p => p.id));
+      const firstPlayer = state.players[0];
       
       return {
         ...state,
         auction: {
           powerPlant: plant,
-          currentBid: plant.number,
-          participants: new Set(state.players.map(p => p.id)),
+          currentBid: 0, // Start at 0, first bid must be >= plant.number
+          participants,
           round: 1,
         },
+        currentTurn: firstPlayer?.id || '',
       };
     }
 
@@ -143,9 +154,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.auction) {
         const updatedAuction = PowerGridEngine.placeBid(state.auction, action.payload.playerId, action.payload.amount);
         if (updatedAuction) {
+          // Advance to next active participant
+          const activeParticipants = Array.from(updatedAuction.participants);
+          const currentIndex = activeParticipants.indexOf(action.payload.playerId);
+          const nextIndex = (currentIndex + 1) % activeParticipants.length;
+          const nextPlayerId = activeParticipants[nextIndex];
+          
           return {
             ...state,
             auction: updatedAuction,
+            currentTurn: nextPlayerId,
           };
         }
       }
@@ -156,24 +174,39 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const updatedParticipants = new Set(state.auction.participants);
         updatedParticipants.delete(action.payload.playerId);
         
-        // If only 1 participant left, end auction and award plant
-        if (updatedParticipants.size <= 1) {
-          if (state.auction.highestBidder) {
-            const winner = state.players.find(p => p.id === state.auction!.highestBidder);
-            if (winner && winner.money >= state.auction.currentBid) {
-              const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
-              if (updatedWinner) {
-                const updatedPlayers = state.players.map(p => p.id === state.auction!.highestBidder ? updatedWinner : p);
-                return {
-                  ...state,
-                  players: updatedPlayers,
-                  auction: undefined,
-                  availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
-                };
-              }
+        // If all passed (no one bid), plant is discarded
+        if (updatedParticipants.size === 0) {
+          return {
+            ...state,
+            auction: undefined,
+            availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+            currentTurn: state.players[0].id,
+          };
+        }
+        
+        // If only 1 participant left and someone has bid, end auction
+        if (updatedParticipants.size === 1 && state.auction.highestBidder) {
+          const winnerId = Array.from(updatedParticipants)[0];
+          const winner = state.players.find(p => p.id === winnerId);
+          
+          if (winner && winner.money >= state.auction.currentBid) {
+            const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
+            if (updatedWinner) {
+              const updatedPlayers = state.players.map(p => p.id === winnerId ? updatedWinner : p);
+              return {
+                ...state,
+                players: updatedPlayers,
+                auction: undefined,
+                availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+                currentTurn: state.players[0].id,
+              };
             }
           }
         }
+        
+        // Move to next participant
+        const remainingPlayers = Array.from(updatedParticipants);
+        const nextPlayer = remainingPlayers[0];
         
         return {
           ...state,
@@ -181,6 +214,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             ...state.auction,
             participants: updatedParticipants,
           },
+          currentTurn: nextPlayer,
         };
       }
       return state;
@@ -292,13 +326,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         strategy
       );
       
-      if (bidAmount !== null) {
-        // Place bid
+      if (bidAmount !== null && bidAmount > 0) {
+        // Place bid and advance to next participant
         const updatedAuction = PowerGridEngine.placeBid(state.auction, robotId, bidAmount);
         if (updatedAuction) {
+          const activeParticipants = Array.from(updatedAuction.participants);
+          const currentIndex = activeParticipants.indexOf(robotId);
+          const nextIndex = (currentIndex + 1) % activeParticipants.length;
+          const nextPlayerId = activeParticipants[nextIndex];
+          
           return {
             ...state,
             auction: updatedAuction,
+            currentTurn: nextPlayerId,
           };
         }
       } else {
@@ -306,30 +346,46 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const updatedParticipants = new Set(state.auction.participants);
         updatedParticipants.delete(robotId);
         
-        // If only 1 participant left, end auction and award plant
-        if (updatedParticipants.size <= 1) {
-          if (state.auction.highestBidder) {
-            const winner = state.players.find(p => p.id === state.auction!.highestBidder);
-            if (winner && winner.money >= state.auction.currentBid) {
-              const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
-              if (updatedWinner) {
-                const updatedPlayers = state.players.map(p => p.id === state.auction!.highestBidder ? updatedWinner : p);
-                return {
-                  ...state,
-                  players: updatedPlayers,
-                  auction: undefined,
-                  availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
-                };
-              }
+        // If all passed, discard plant
+        if (updatedParticipants.size === 0) {
+          return {
+            ...state,
+            auction: undefined,
+            availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+            currentTurn: state.players[0].id,
+          };
+        }
+        
+        // If only 1 left with bid, award plant
+        if (updatedParticipants.size === 1 && state.auction.highestBidder) {
+          const winnerId = Array.from(updatedParticipants)[0];
+          const winner = state.players.find(p => p.id === winnerId);
+          
+          if (winner && winner.money >= state.auction.currentBid) {
+            const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
+            if (updatedWinner) {
+              const updatedPlayers = state.players.map(p => p.id === winnerId ? updatedWinner : p);
+              return {
+                ...state,
+                players: updatedPlayers,
+                auction: undefined,
+                availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+                currentTurn: state.players[0].id,
+              };
             }
           }
         } else {
+          // Move to next participant
+          const remainingPlayers = Array.from(updatedParticipants);
+          const nextPlayer = remainingPlayers[0];
+          
           return {
             ...state,
             auction: {
               ...state.auction,
               participants: updatedParticipants,
             },
+            currentTurn: nextPlayer,
           };
         }
       }

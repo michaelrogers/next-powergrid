@@ -23,42 +23,16 @@ export default function AuctionMarket() {
   useEffect(() => {
     if (!currentPlayer || !currentPlayer.isRobot || !state.auction) return;
 
+    // Dispatch ROBOT_TURN action instead of manual logic
     const timer = setTimeout(() => {
-      const difficulty = (currentPlayer.robotDifficulty || 'medium') as string;
-      const strategy = RobotAI.STRATEGIES[difficulty.toLowerCase() as keyof typeof RobotAI.STRATEGIES];
-      
-      const bid = RobotAI.decideBid(
-        currentPlayer,
-        state.auction!.powerPlant,
-        state.auction!.currentBid,
-        strategy
-      );
-
-      if (bid !== null && bid > 0 && currentPlayer.money >= bid) {
-        dispatch({
-          type: 'PLACE_BID',
-          payload: { playerId: currentPlayer.id, amount: bid },
-        });
-      } else {
-        // Robot passes
-        advanceTurn();
-      }
+      dispatch({
+        type: 'ROBOT_TURN',
+        payload: { playerId: currentPlayer.id },
+      });
     }, 1500); // Delay for visual feedback
 
     return () => clearTimeout(timer);
-  }, [currentPlayer, state.auction]);
-
-  const advanceTurn = () => {
-    if (!state.currentTurn) return;
-    
-    const currentIndex = state.players.findIndex(p => p.id === state.currentTurn);
-    const nextIndex = (currentIndex + 1) % state.players.length;
-    
-    dispatch({
-      type: 'SET_CURRENT_TURN',
-      payload: { playerId: state.players[nextIndex].id },
-    });
-  };
+  }, [currentPlayer, state.auction, dispatch]);
 
   if (!humanPlayer) return null;
 
@@ -78,7 +52,6 @@ export default function AuctionMarket() {
         payload: { playerId: humanPlayer.id, amount: bidAmount },
       });
       setBidAmount(bidAmount + 1);
-      advanceTurn();
     }
   };
 
