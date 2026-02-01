@@ -69,15 +69,19 @@ export const VoronoiRegionRenderer: React.FC<VoronoiRegionRendererProps> = ({
     <g>
       {/* Render polygon fills */}
       {renderedRegions.map((r, idx) => (
-        <path
-          key={`region-fill-${idx}`}
-          d={r.svgPath}
-          fill={r.region.regionColor}
-          fillOpacity={opacity}
-          stroke={r.region.regionColor}
-          strokeWidth={2}
-          strokeOpacity={0.8}
-        />
+        <g key={`region-${idx}`}>
+          {r.cells.map((cell, cellIdx) => (
+            <path
+              key={`region-cell-${idx}-${cellIdx}`}
+              d={cell.svgPath}
+              fill={r.region.regionColor}
+              fillOpacity={opacity}
+              stroke={r.region.regionColor}
+              strokeWidth={2}
+              strokeOpacity={0.8}
+            />
+          ))}
+        </g>
       ))}
 
       {/* Render labels */}

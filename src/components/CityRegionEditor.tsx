@@ -3,8 +3,9 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { getCachedMap } from '@/lib/mapCache';
-import type { GameMapV2, RegionDefinition } from '@/lib/mapDataV2';
+import type { GameMapV2, RegionDefinition, ConnectionDefinition } from '@/lib/mapDataV2';
 import { renderRegionsWithVoronoi } from '@/lib/voronoiRegionRenderer';
+import type { RenderedRegion } from '@/lib/voronoiRegionRenderer';
 import { buildOutlinePath, buildOutlinePoints, getPolygonsFromGeoJson, selectBestPolygon } from '@/lib/geojsonOutline';
 import { getVoronoiRegions } from '@/lib/voronoiCache';
 import type { GeoJson } from '@/lib/geojsonOutline';
@@ -58,8 +59,8 @@ export default function CityRegionEditor({ mapId }: Props) {
   
   // State
   const [cities, setCities] = useState<any[]>([]);
-  const [regions, setRegions] = useState<any[]>([]);
-  const [connections, setConnections] = useState([]);
+  const [regions, setRegions] = useState<RegionDefinition[]>([]);
+  const [connections, setConnections] = useState<ConnectionDefinition[]>([]);
   
   // Initialize state from loaded map
   useEffect(() => {
@@ -83,6 +84,24 @@ export default function CityRegionEditor({ mapId }: Props) {
   const [isNewCityIdManual, setIsNewCityIdManual] = useState(false);
   const [isNewRegionIdManual, setIsNewRegionIdManual] = useState(false);
   const [selectedConnectionIdx, setSelectedConnectionIdx] = useState<number | null>(null);
+  const [renderedRegions, setRenderedRegions] = useState<RenderedRegion[]>([]);
+  const [countryOutlinePath, setCountryOutlinePath] = useState<string | null>(null);
+  const [boundaryPolygon, setBoundaryPolygon] = useState<Array<{ x: number; y: number }> | null>(null);
+  const [map, setMap] = useState<any>(null);
+  const [draggedCityId, setDraggedCityId] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [citiesOutsideBorder, setCitiesOutsideBorder] = useState<Set<string>>(new Set());
+  const [isPanning, setIsPanning] = useState(false);
+  const [spacePressed, setSpacePressed] = useState(false);
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
+  const [showCountryOutline, setShowCountryOutline] = useState(false);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const panStart = useRef<{ x: number; y: number } | null>(null);
+  const cityIdManualRef = useRef(new Set<string>());
+  const regionIdManualRef = useRef(new Set<string>());
+  const stableKeyCounterRef = useRef(0);
+  const regionStableKeyRef = useRef(new Map<string, string>());
   const connectionInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
 
   // Load cached Voronoi visualization on map load
@@ -106,20 +125,20 @@ export default function CityRegionEditor({ mapId }: Props) {
 
     async function loadOutline() {
       try {
-        const resp = await fetch(`/maps/${mapData.id}.geo.json`);
+        const resp = await fetch(`/maps/${mapData!.id}.geo.json`);
         if (!resp.ok) return;
         const geo: GeoJson = await resp.json();
         const polygons = getPolygonsFromGeoJson(geo);
         
         // Select the best polygon (mainland, not islands)
-        const selectedPolygon = selectBestPolygon(polygons, mapData.id);
+        const selectedPolygon = selectBestPolygon(polygons, mapData!.id);
         if (selectedPolygon) {
-          const outline = buildOutlinePath(selectedPolygon, mapData.id);
+          const outline = buildOutlinePath(selectedPolygon, mapData!.id);
           if (!cancelled) {
             setCountryOutlinePath(outline);
             
             // Convert boundary to percentage coordinates for visual clipping
-            const boundaryPoints = buildOutlinePoints(selectedPolygon, mapData.id);
+            const boundaryPoints = buildOutlinePoints(selectedPolygon, mapData!.id);
             setBoundaryPolygon(boundaryPoints);
           }
         }
@@ -427,7 +446,7 @@ export default function CityRegionEditor({ mapId }: Props) {
     const trimmedName = newRegionName.trim();
     if (!trimmedName) return;
 
-    const existingIds = new Set(regions.map(r => r.id));
+    const existingIds = new Set(regions.map(r => r.id).filter((id): id is string => id !== undefined));
     const baseId = slugifyId(newRegionId || trimmedName || 'region');
     const id = ensureUniqueId(baseId || `region-${regions.length + 1}`, existingIds);
     if (!isValidSlug(id)) return;
@@ -1130,13 +1149,13 @@ export default function CityRegionEditor({ mapId }: Props) {
                                     className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs disabled:opacity-50"
                                     onClick={() => {
                                       if (!newConnectionB) return;
-                                      const cost = newConnectionCost ? Number.parseFloat(newConnectionCost) : null;
+                                      const costNum = newConnectionCost ? Number.parseFloat(newConnectionCost) : undefined;
                                       setConnections(prev => [
                                         ...prev,
                                         {
                                           cityA: selectedCityId,
                                           cityB: newConnectionB,
-                                          cost: Number.isNaN(cost) ? undefined : cost,
+                                          cost: Number.isNaN(costNum as number) ? undefined : costNum,
                                         }
                                       ]);
                                       setNewConnectionB('');
@@ -1241,11 +1260,16 @@ export default function CityRegionEditor({ mapId }: Props) {
             </div>
             <div className="space-y-2">
               {regions.map(region => {
+                // Skip regions without IDs
+                if (!region.id) return null;
+                
                 // Get or create stable key for this region
                 if (!regionStableKeyRef.current.has(region.id)) {
                   regionStableKeyRef.current.set(region.id, `region-key-${stableKeyCounterRef.current++}`);
                 }
                 const stableKey = regionStableKeyRef.current.get(region.id)!;
+                const regionId = region.id as string; // Type guard - we know it exists since we checked above
+                const regionName = region.name || ''; // Default to empty string if undefined
                 
                 return (
                 <div key={stableKey} className="bg-slate-700 p-3 rounded text-sm">
@@ -1254,20 +1278,20 @@ export default function CityRegionEditor({ mapId }: Props) {
                       <input
                         type="color"
                         value={region.regionColor}
-                        onChange={(e) => updateRegionColor(region.id, e.target.value)}
+                        onChange={(e) => updateRegionColor(regionId, e.target.value)}
                         className="h-6 w-8 bg-transparent border border-slate-600 rounded"
                         title="Region color"
                       />
                       <input
-                        value={region.name}
-                        onChange={(e) => updateRegionName(region.id, e.target.value)}
+                        value={regionName}
+                        onChange={(e) => updateRegionName(regionId, e.target.value)}
                         className="px-2 py-1 bg-slate-600 text-white rounded text-sm"
                       />
                       <span className="text-xs text-gray-400">({region.cityIds.length})</span>
                     </div>
                     <button
                       className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded"
-                      onClick={() => deleteRegion(region.id)}
+                      onClick={() => deleteRegion(regionId)}
                     >
                       Delete
                     </button>
@@ -1276,19 +1300,19 @@ export default function CityRegionEditor({ mapId }: Props) {
                     <label className="text-xs text-gray-300 block mb-1">Region ID (slug)</label>
                     <div className="flex items-center gap-2">
                       <input
-                        value={region.id}
-                        onChange={(e) => updateRegionId(region.id, e.target.value, true)}
-                        className={`flex-1 px-2 py-1 rounded text-xs ${isValidSlug(region.id) ? 'bg-slate-600 text-white' : 'bg-red-900/40 text-red-200 border border-red-600/50'}`}
+                        value={regionId}
+                        onChange={(e) => updateRegionId(regionId, e.target.value, true)}
+                        className={`flex-1 px-2 py-1 rounded text-xs ${isValidSlug(regionId) ? 'bg-slate-600 text-white' : 'bg-red-900/40 text-red-200 border border-red-600/50'}`}
                       />
                       <button
                         type="button"
                         className="px-2 py-1 bg-slate-600 hover:bg-slate-500 text-white rounded text-xs"
-                        onClick={() => updateRegionId(region.id, slugifyId(region.name), false)}
+                        onClick={() => updateRegionId(regionId, slugifyId(regionName), false)}
                       >
                         Auto
                       </button>
                     </div>
-                    {!isValidSlug(region.id) && (
+                    {!isValidSlug(regionId) && (
                       <div className="text-[10px] text-red-300 mt-1">Invalid slug format.</div>
                     )}
                   </div>
