@@ -39,48 +39,6 @@ export interface GameMapV2 {
   countryOutline?: string;
 }
 
-// NOTE: Hardcoded maps are deprecated. Maps are now loaded from trace files via loadMapFromTrace()
-// These exports are kept for backward compatibility but should not be used for new code.
-
-// Placeholder for USA map - actual data loaded from trace file
-export const USA_MAP_V2: GameMapV2 = {
-  id: 'usa',
-  name: 'United States',
-  width: 1000,
-  height: 600,
-  cities: [],
-  regions: [],
-  connections: [],
-};
-
-// Placeholder for Germany map - actual data loaded from trace file
-export const GERMANY_MAP_V2: GameMapV2 = {
-  id: 'germany',
-  name: 'Germany',
-  width: 800,
-  height: 600,
-  cities: [],
-  regions: [],
-  connections: [],
-};
-
-// Placeholder for France map - actual data loaded from trace file
-export const FRANCE_MAP_V2: GameMapV2 = {
-  id: 'france',
-  name: 'France',
-  width: 800,
-  height: 700,
-  cities: [],
-  regions: [],
-  connections: [],
-};
-
-export const MAPS_V2: Record<string, GameMapV2> = {
-  usa: USA_MAP_V2,
-  germany: GERMANY_MAP_V2,
-  france: FRANCE_MAP_V2,
-};
-
 /**
  * Get a city by ID from a map
  */
@@ -204,13 +162,10 @@ export async function loadMapFromTrace(mapId: string): Promise<GameMapV2 | null>
 }
 
 /**
- * Get map from trace files, with fallback to hardcoded maps
+ * Get map from trace files, with fallback to null if not found
  */
-export async function getMapByIdWithTrace(mapId: string): Promise<GameMapV2> {
-  // Try to load from trace files first
+export async function getMapByIdWithTrace(mapId: string): Promise<GameMapV2 | null> {
+  // Load from trace files
   const mapFromTrace = await loadMapFromTrace(mapId);
-  if (mapFromTrace) return mapFromTrace;
-  
-  // Fallback to hardcoded maps
-  return MAPS_V2[mapId] || USA_MAP_V2;
+  return mapFromTrace;
 }
