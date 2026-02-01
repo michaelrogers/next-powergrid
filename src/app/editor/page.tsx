@@ -34,16 +34,30 @@ export default function EditorIndexPage() {
           </ul>
         </div>
         
-        <div className="flex gap-4 justify-center mb-6">
-          {Object.entries(MAPS_V2).map(([id, map]) => (
-            <Link
-              key={id}
-              href={`/editor/${id}`}
-              className="px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition shadow-lg hover:shadow-xl"
-            >
-              {map.name}
-            </Link>
-          ))}
+        <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden mb-6">
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-xs uppercase tracking-wide text-gray-400 border-b border-slate-700">
+            <div>Map</div>
+            <div>Cities</div>
+            <div>Regions</div>
+            <div>Connections</div>
+          </div>
+          <div className="divide-y divide-slate-700">
+            {Object.entries(MAPS_V2).map(([id, map]) => (
+              <Link
+                key={id}
+                href={`/editor/${id}`}
+                className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 px-4 py-4 text-left hover:bg-slate-700/60 transition"
+              >
+                <div>
+                  <div className="font-semibold text-white">{map.name}</div>
+                  <div className="text-xs text-gray-400">ID: {map.id}</div>
+                </div>
+                <div className="text-sm text-gray-200">{map.cities.length}</div>
+                <div className="text-sm text-gray-200">{map.regions.length}</div>
+                <div className="text-sm text-gray-200">{map.connections.length}</div>
+              </Link>
+            ))}
+          </div>
         </div>
         
         <div className="text-sm text-gray-500">

@@ -58,12 +58,9 @@ function GameSetup() {
         <p className="text-gray-400 text-center mb-6">Recharged - Build your power empire</p>
         
         {/* Development Tools Links */}
-        <div className="flex justify-center gap-4 mb-6 text-sm">
+        <div className="flex justify-center mb-6 text-sm">
           <Link href="/editor" className="text-emerald-400 hover:text-emerald-300 transition-colors">
             🗺️ Map Editor
-          </Link>
-          <Link href="/devtools" className="text-gray-500 hover:text-gray-400 transition-colors line-through" title="Deprecated - use Map Editor">
-            Devtools (old)
           </Link>
         </div>
 
@@ -74,13 +71,12 @@ function GameSetup() {
             <div className="flex gap-2">
               <button
                 onClick={() => setGameMode('pvp')}
-                className={`flex-1 py-2 px-3 rounded font-semibold transition-colors text-sm ${
-                  gameMode === 'pvp'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
-                }`}
+                disabled
+                className="flex-1 py-2 px-3 rounded font-semibold transition-colors text-sm bg-slate-700/50 text-gray-500 cursor-not-allowed"
+                title="Multiplayer mode coming soon"
               >
                 Multiplayer
+                <span className="text-xs block">Coming Soon</span>
               </button>
               <button
                 onClick={() => setGameMode('solo')}
