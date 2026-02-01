@@ -46,14 +46,14 @@
     {
       "id": "minneapolis",
       "name": "Minneapolis",
-      "x": 54,
-      "y": 19
+      "x": 53.453150133679,
+      "y": 21.933361898490134
     },
     {
       "id": "chicago",
       "name": "Chicago",
-      "x": 62.43501820958646,
-      "y": 24.30806460310612
+      "x": 61.76938414266364,
+      "y": 29.65612530239689
     },
     {
       "id": "detroit",
@@ -64,14 +64,14 @@
     {
       "id": "stlouis",
       "name": "St. Louis",
-      "x": 59.73588757048872,
-      "y": 38.559304896462464
+      "x": 57.96692274264228,
+      "y": 42.812037910970126
     },
     {
       "id": "atlanta",
       "name": "Atlanta",
-      "x": 72,
-      "y": 57
+      "x": 69.34417624699623,
+      "y": 56.94262780337167
     },
     {
       "id": "houston",
@@ -100,8 +100,8 @@
     {
       "id": "portland",
       "name": "Portland",
-      "x": 4.569835232612782,
-      "y": 18.652596527178602
+      "x": 3.5128383196883837,
+      "y": 17.829518826776862
     },
     {
       "id": "sanfrancisco",
@@ -124,14 +124,14 @@
     {
       "id": "denver",
       "name": "Denver",
-      "x": 36.76996446193609,
-      "y": 41.28693917169974
+      "x": 36.871709906831725,
+      "y": 40.66548742046386
     },
     {
       "id": "billings",
       "name": "Billings",
-      "x": 30.561266447368425,
-      "y": 15.829580996548748
+      "x": 31.961795254603807,
+      "y": 17.33005213178792
     },
     {
       "id": "boise",
@@ -160,8 +160,8 @@
     {
       "id": "kansas-city",
       "name": "Kansas CIty",
-      "x": 53.591069960056394,
-      "y": 45.538314279551344
+      "x": 52.24111859979072,
+      "y": 44.31197612956831
     },
     {
       "id": "memphis",
@@ -190,8 +190,8 @@
     {
       "id": "jacksonville",
       "name": "Jacksonville",
-      "x": 73.35911800986842,
-      "y": 74.9582075064711
+      "x": 73.90881465409382,
+      "y": 71.13865224030855
     },
     {
       "id": "tampa",
@@ -208,26 +208,26 @@
     {
       "id": "fargo",
       "name": "Fargo",
-      "x": 49.32374882518797,
-      "y": 10.776733714408975
+      "x": 50.63269022502771,
+      "y": 13.41408162973984
     },
     {
       "id": "duluth",
       "name": "Duluth",
-      "x": 57.87270911654135,
-      "y": 11.757846203623814
+      "x": 56.27539196519488,
+      "y": 14.059206752908478
     },
     {
       "id": "omaha",
       "name": "Omaha",
-      "x": 51.02575775375939,
-      "y": 37.154874892148406
+      "x": 51.144912052099976,
+      "y": 36.41908290986972
     },
     {
       "id": "knoxville",
       "name": "Knoxville",
-      "x": 65.96018855733082,
-      "y": 53.236896031061264
+      "x": 69.25200223700124,
+      "y": 52.07608226843148
     },
     {
       "id": "santa-fe",
@@ -250,8 +250,8 @@
     {
       "id": "cincinnati",
       "name": "Cincinnati",
-      "x": 66.94776492011279,
-      "y": 40.015975517687664
+      "x": 67.9286815205707,
+      "y": 39.88265232402317
     }
   ],
   "regions": [
@@ -390,22 +390,22 @@
     {
       "cityA": "seattle",
       "cityB": "portland",
-      "cost": 1
+      "cost": 3
     },
     {
       "cityA": "portland",
       "cityB": "sanfrancisco",
-      "cost": 1
+      "cost": 24
     },
     {
       "cityA": "sanfrancisco",
       "cityB": "losangeles",
-      "cost": 1
+      "cost": 9
     },
     {
       "cityA": "losangeles",
       "cityB": "lasvegas",
-      "cost": 1
+      "cost": 9
     },
     {
       "cityA": "detroit",
@@ -566,7 +566,202 @@
       "cityA": "santa-fe",
       "cityB": "salt-lake-city",
       "cost": 28
+    },
+    {
+      "cityA": "santa-fe",
+      "cityB": "lasvegas",
+      "cost": 27
+    },
+    {
+      "cityA": "santa-fe",
+      "cityB": "phoenix",
+      "cost": 18
+    },
+    {
+      "cityA": "phoenix",
+      "cityB": "lasvegas",
+      "cost": 15
+    },
+    {
+      "cityA": "phoenix",
+      "cityB": "san-diego",
+      "cost": 14
+    },
+    {
+      "cityA": "san-diego",
+      "cityB": "lasvegas",
+      "cost": 9
+    },
+    {
+      "cityA": "san-diego",
+      "cityB": "losangeles",
+      "cost": 3
+    },
+    {
+      "cityA": "sanfrancisco",
+      "cityB": "lasvegas",
+      "cost": 14
+    },
+    {
+      "cityA": "sanfrancisco",
+      "cityB": "salt-lake-city",
+      "cost": 27
+    },
+    {
+      "cityA": "sanfrancisco",
+      "cityB": "boise",
+      "cost": 23
+    },
+    {
+      "cityA": "portland",
+      "cityB": "boise",
+      "cost": 13
+    },
+    {
+      "cityA": "seattle",
+      "cityB": "boise",
+      "cost": 12
+    },
+    {
+      "cityA": "seattle",
+      "cityB": "billings",
+      "cost": 9
+    },
+    {
+      "cityA": "boise",
+      "cityB": "billings",
+      "cost": 12
+    },
+    {
+      "cityA": "boise",
+      "cityB": "cheyenne",
+      "cost": 24
+    },
+    {
+      "cityA": "boise",
+      "cityB": "salt-lake-city",
+      "cost": 8
+    },
+    {
+      "cityA": "billings",
+      "cityB": "cheyenne",
+      "cost": 9
+    },
+    {
+      "cityA": "billings",
+      "cityB": "fargo",
+      "cost": 17
+    },
+    {
+      "cityA": "billings",
+      "cityB": "minneapolis",
+      "cost": 18
+    },
+    {
+      "cityA": "cheyenne",
+      "cityB": "denver",
+      "cost": 0
+    },
+    {
+      "cityA": "cheyenne",
+      "cityB": "minneapolis",
+      "cost": 18
+    },
+    {
+      "cityA": "cheyenne",
+      "cityB": "omaha",
+      "cost": 14
+    },
+    {
+      "cityA": "salt-lake-city",
+      "cityB": "denver",
+      "cost": 21
+    },
+    {
+      "cityA": "salt-lake-city",
+      "cityB": "lasvegas",
+      "cost": 18
+    },
+    {
+      "cityA": "denver",
+      "cityB": "kansas-city",
+      "cost": 16
+    },
+    {
+      "cityA": "omaha",
+      "cityB": "kansas-city",
+      "cost": 5
+    },
+    {
+      "cityA": "chicago",
+      "cityB": "omaha",
+      "cost": 13
+    },
+    {
+      "cityA": "omaha",
+      "cityB": "minneapolis",
+      "cost": 8
+    },
+    {
+      "cityA": "minneapolis",
+      "cityB": "fargo",
+      "cost": 6
+    },
+    {
+      "cityA": "minneapolis",
+      "cityB": "duluth",
+      "cost": 5
+    },
+    {
+      "cityA": "duluth",
+      "cityB": "fargo",
+      "cost": 6
+    },
+    {
+      "cityA": "duluth",
+      "cityB": "chicago",
+      "cost": 12
+    },
+    {
+      "cityA": "duluth",
+      "cityB": "detroit",
+      "cost": 15
+    },
+    {
+      "cityA": "stlouis",
+      "cityB": "kansas-city",
+      "cost": 6
+    },
+    {
+      "cityA": "stlouis",
+      "cityB": "cincinnati",
+      "cost": 12
+    },
+    {
+      "cityA": "cincinnati",
+      "cityB": "chicago",
+      "cost": 7
+    },
+    {
+      "cityA": "cincinnati",
+      "cityB": "detroit",
+      "cost": 4
+    },
+    {
+      "cityA": "cincinnati",
+      "cityB": "pittsburgh",
+      "cost": 7
+    },
+    {
+      "cityA": "cincinnati",
+      "cityB": "knoxville",
+      "cost": 6
+    },
+    {
+      "cityA": "knoxville",
+      "cityB": "atlanta",
+      "cost": 6
     }
   ],
-  "lastUpdated": "2026-01-31T23:54:42.739Z"
+  "lastUpdated": "2026-02-01T01:38:09.285Z"
 }
