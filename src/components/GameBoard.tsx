@@ -125,15 +125,38 @@ export default function GameBoard() {
               Players bid on power plants. Highest bidder wins the plant.
             </p>
             <div className="space-y-2">
-              <button
-                onClick={handleNextPhase}
-                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition-colors"
-              >
-                Skip Auction (For Now)
-              </button>
-              <p className="text-xs text-gray-400 text-center">
-                Auction system will be fully implemented soon
-              </p>
+              {!state.auction && state.availablePowerPlants.length > 0 && (
+                <button
+                  onClick={() => {
+                    const plant = state.availablePowerPlants[0];
+                    const participants = new Set(state.players.map(p => p.id));
+                    dispatch({
+                      type: 'START_AUCTION',
+                      payload: { plantId: plant.id }
+                    });
+                    dispatch({
+                      type: 'SET_CURRENT_TURN',
+                      payload: { playerId: state.players[0].id }
+                    });
+                  }}
+                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                >
+                  Start Next Auction
+                </button>
+              )}
+              {state.auction && (
+                <p className="text-sm text-yellow-200 text-center">
+                  Auction in progress - see market below
+                </p>
+              )}
+              {!state.auction && state.availablePowerPlants.length === 0 && (
+                <button
+                  onClick={handleNextPhase}
+                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                >
+                  No More Plants - Move to Fuel Purchase
+                </button>
+              )}
             </div>
           </div>
         );

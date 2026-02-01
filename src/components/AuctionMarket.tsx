@@ -83,8 +83,11 @@ export default function AuctionMarket() {
   };
 
   const handlePass = () => {
-    if (isHumanTurn) {
-      advanceTurn();
+    if (isHumanTurn && state.auction) {
+      dispatch({
+        type: 'PASS_AUCTION',
+        payload: { playerId: humanPlayer.id },
+      });
     }
   };
 

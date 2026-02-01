@@ -141,12 +141,45 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'PLACE_BID':
       if (state.auction) {
+        const updatedAuction = PowerGridEngine.placeBid(state.auction, action.payload.playerId, action.payload.amount);
+        if (updatedAuction) {
+          return {
+            ...state,
+            auction: updatedAuction,
+          };
+        }
+      }
+      return state;
+
+    case 'PASS_AUCTION':
+      if (state.auction) {
+        const updatedParticipants = new Set(state.auction.participants);
+        updatedParticipants.delete(action.payload.playerId);
+        
+        // If only 1 participant left, end auction and award plant
+        if (updatedParticipants.size <= 1) {
+          if (state.auction.highestBidder) {
+            const winner = state.players.find(p => p.id === state.auction!.highestBidder);
+            if (winner && winner.money >= state.auction.currentBid) {
+              const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
+              if (updatedWinner) {
+                const updatedPlayers = state.players.map(p => p.id === state.auction!.highestBidder ? updatedWinner : p);
+                return {
+                  ...state,
+                  players: updatedPlayers,
+                  auction: undefined,
+                  availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+                };
+              }
+            }
+          }
+        }
+        
         return {
           ...state,
           auction: {
             ...state.auction,
-            currentBid: action.payload.amount,
-            highestBidder: action.payload.playerId,
+            participants: updatedParticipants,
           },
         };
       }
@@ -234,8 +267,73 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'ROBOT_TURN': {
-      // Robot AI makes automatic decisions
-      // This would be extended to handle robot auction, fuel, and build decisions
+      // Robot AI makes automatic decisions during auction
+      const robotId = action.payload.playerId;
+      const robot = state.players.find(p => p.id === robotId);
+      
+      if (!robot || !robot.isRobot || !state.auction) {
+        return state;
+      }
+      
+      // Check if robot is still in auction
+      if (!state.auction.participants.has(robotId)) {
+        return state;
+      }
+      
+      // Get robot's difficulty and strategy
+      const difficulty = robot.robotDifficulty || 'medium';
+      const strategy = RobotAI.STRATEGIES[difficulty];
+      
+      // Decide whether to bid or pass
+      const bidAmount = RobotAI.decideBid(
+        robot,
+        state.auction.powerPlant,
+        state.auction.currentBid,
+        strategy
+      );
+      
+      if (bidAmount !== null) {
+        // Place bid
+        const updatedAuction = PowerGridEngine.placeBid(state.auction, robotId, bidAmount);
+        if (updatedAuction) {
+          return {
+            ...state,
+            auction: updatedAuction,
+          };
+        }
+      } else {
+        // Pass auction
+        const updatedParticipants = new Set(state.auction.participants);
+        updatedParticipants.delete(robotId);
+        
+        // If only 1 participant left, end auction and award plant
+        if (updatedParticipants.size <= 1) {
+          if (state.auction.highestBidder) {
+            const winner = state.players.find(p => p.id === state.auction!.highestBidder);
+            if (winner && winner.money >= state.auction.currentBid) {
+              const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
+              if (updatedWinner) {
+                const updatedPlayers = state.players.map(p => p.id === state.auction!.highestBidder ? updatedWinner : p);
+                return {
+                  ...state,
+                  players: updatedPlayers,
+                  auction: undefined,
+                  availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+                };
+              }
+            }
+          }
+        } else {
+          return {
+            ...state,
+            auction: {
+              ...state.auction,
+              participants: updatedParticipants,
+            },
+          };
+        }
+      }
+      
       return state;
     }
 
