@@ -125,9 +125,9 @@ export default function FuelMarket() {
   const cost = cheapestPrice * quantity;
   const canAfford = humanPlayer.money >= cost;
 
-  // Calculate fuel capacity from power plants
+  // Calculate fuel capacity from power plants (storage up to double)
   const totalFuelCapacity = humanPlayer.powerPlants.reduce((total, plant) => {
-    return total + plant.fuelCapacity;
+    return total + plant.fuelCapacity * 2;
   }, 0);
 
   const currentFuelTotal = Object.values(humanPlayer.resources).reduce((a, b) => a + b, 0);
@@ -155,7 +155,7 @@ export default function FuelMarket() {
             <p className="text-2xl font-bold text-green-400">${humanPlayer.money}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400">Storage Capacity</p>
+            <p className="text-xs text-slate-400">Storage Capacity (2x)</p>
             <p className="text-2xl font-bold text-blue-400">{currentFuelTotal}/{totalFuelCapacity}</p>
           </div>
         </div>

@@ -52,18 +52,36 @@ export default function BureaucracyPhase() {
     // Use plants in order, consuming fuel
     for (const plant of player.powerPlants) {
       if (remainingCities <= 0) break;
-      
-      const citiesPowered = Math.min(plant.power, remainingCities);
-      const fuelNeeded = Math.ceil(citiesPowered / plant.efficiency);
-      
-      // Consume fuel
-      for (const fuelType of plant.fuelType) {
-        if (player.resources[fuelType] >= fuelNeeded) {
-          fuelConsumed[fuelType] += fuelNeeded;
-          remainingCities -= citiesPowered;
-          break;
-        }
+
+      const plantCities = plant.citiesPowered ?? 0;
+      if (plantCities <= 0) continue;
+
+      if (plant.fuelType.length === 0 || plant.fuelCapacity === 0) {
+        const powered = Math.min(plantCities, remainingCities);
+        remainingCities -= powered;
+        continue;
       }
+
+      const availableFuelTotal = plant.fuelType.reduce(
+        (sum, fuelType) => sum + (player.resources[fuelType] || 0),
+        0
+      );
+
+      if (availableFuelTotal < plant.fuelCapacity) {
+        continue;
+      }
+
+      let fuelNeeded = plant.fuelCapacity;
+      for (const fuelType of plant.fuelType) {
+        if (fuelNeeded <= 0) break;
+        const available = player.resources[fuelType] || 0;
+        const toConsume = Math.min(available, fuelNeeded);
+        fuelConsumed[fuelType] += toConsume;
+        fuelNeeded -= toConsume;
+      }
+
+      const powered = Math.min(plantCities, remainingCities);
+      remainingCities -= powered;
     }
 
     // Calculate payment

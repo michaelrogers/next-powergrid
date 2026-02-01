@@ -77,8 +77,9 @@ export class RobotAI {
     let score = 0.5; // Base score
 
     // Bonus for power output
-    if (plant.power >= 30) score += 0.3;
-    else if (plant.power >= 20) score += 0.2;
+    const citiesPowered = plant.citiesPowered ?? 0;
+    if (citiesPowered >= 4) score += 0.3;
+    else if (citiesPowered >= 3) score += 0.2;
 
     // Bonus if fuel matches preference
     if (plant.fuelType.includes(strategy.fuelPreference)) {

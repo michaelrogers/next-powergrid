@@ -1,0 +1,624 @@
+[
+  {"id":"pp_03","number":3,"fuelType":["oil"],"fuelCapacity":2,"citiesPowered":1,"artKey":"oil"},
+  {"id":"pp_04","number":4,"fuelType":["coal"],"fuelCapacity":2,"citiesPowered":1,"artKey":"coal"},
+  {"id":"pp_05","number":5,"fuelType":["coal","oil"],"fuelCapacity":2,"citiesPowered":1,"artKey":"hybrid"},
+  {"id":"pp_06","number":6,"fuelType":["garbage"],"fuelCapacity":1,"citiesPowered":1,"artKey":"garbage"},
+  {"id":"pp_07","number":7,"fuelType":["oil"],"fuelCapacity":3,"citiesPowered":2,"artKey":"oil"},
+  {"id":"pp_08","number":8,"fuelType":["coal"],"fuelCapacity":3,"citiesPowered":2,"artKey":"coal"},
+  {"id":"pp_09","number":9,"fuelType":["oil"],"fuelCapacity":1,"citiesPowered":1,"artKey":"oil"},
+  {"id":"pp_10","number":10,"fuelType":["coal"],"fuelCapacity":2,"citiesPowered":2,"artKey":"coal"},
+  {"id":"pp_11","number":11,"fuelType":["nuclear"],"fuelCapacity":1,"citiesPowered":2,"artKey":"nuclear"},
+  {"id":"pp_12","number":12,"fuelType":["coal","oil"],"fuelCapacity":2,"citiesPowered":2,"artKey":"hybrid"},
+  {"id":"pp_13","number":13,"fuelType":[],"fuelCapacity":0,"citiesPowered":1,"artKey":"wind"},
+  {"id":"pp_14","number":14,"fuelType":["garbage"],"fuelCapacity":2,"citiesPowered":2,"artKey":"garbage"},
+  {"id":"pp_15","number":15,"fuelType":["coal"],"fuelCapacity":2,"citiesPowered":3,"artKey":"coal"},
+  {"id":"pp_16","number":16,"fuelType":["oil"],"fuelCapacity":2,"citiesPowered":3,"artKey":"oil"},
+  {"id":"pp_17","number":17,"fuelType":["nuclear"],"fuelCapacity":1,"citiesPowered":2,"artKey":"nuclear"},
+  {"id":"pp_18","number":18,"fuelType":[],"fuelCapacity":0,"citiesPowered":2,"artKey":"wind"},
+  {"id":"pp_19","number":19,"fuelType":["garbage"],"fuelCapacity":2,"citiesPowered":3,"artKey":"garbage"},
+  {"id":"pp_20","number":20,"fuelType":["coal"],"fuelCapacity":3,"citiesPowered":5,"artKey":"coal"},
+  {"id":"pp_21","number":21,"fuelType":["coal","oil"],"fuelCapacity":2,"citiesPowered":4,"artKey":"hybrid"},
+  {"id":"pp_22","number":22,"fuelType":[],"fuelCapacity":0,"citiesPowered":2,"artKey":"wind"},
+  {"id":"pp_23","number":23,"fuelType":["nuclear"],"fuelCapacity":1,"citiesPowered":3,"artKey":"nuclear"},
+  {"id":"pp_24","number":24,"fuelType":["garbage"],"fuelCapacity":2,"citiesPowered":4,"artKey":"garbage"},
+  {"id":"pp_25","number":25,"fuelType":["coal"],"fuelCapacity":2,"citiesPowered":5,"artKey":"coal"},
+  {"id":"pp_26","number":26,"fuelType":["oil"],"fuelCapacity":2,"citiesPowered":5,"artKey":"oil"},
+  {"id":"pp_27","number":27,"fuelType":[],"fuelCapacity":0,"citiesPowered":3,"artKey":"wind"},
+  {"id":"pp_28","number":28,"fuelType":["nuclear"],"fuelCapacity":1,"citiesPowered":4,"artKey":"nuclear"},
+  {"id":"pp_29","number":29,"fuelType":["coal","oil"],"fuelCapacity":1,"citiesPowered":4,"artKey":"hybrid"},
+  {"id":"pp_30","number":30,"fuelType":["garbage"],"fuelCapacity":3,"citiesPowered":6,"artKey":"garbage"},
+  {"id":"pp_31","number":31,"fuelType":["coal"],"fuelCapacity":3,"citiesPowered":6,"artKey":"coal"},
+  {"id":"pp_32","number":32,"fuelType":["oil"],"fuelCapacity":3,"citiesPowered":6,"artKey":"oil"},
+  {"id":"pp_33","number":33,"fuelType":[],"fuelCapacity":0,"citiesPowered":4,"artKey":"wind"},
+  {"id":"pp_34","number":34,"fuelType":["nuclear"],"fuelCapacity":1,"citiesPowered":5,"artKey":"nuclear"},
+  {"id":"pp_35","number":35,"fuelType":["oil"],"fuelCapacity":1,"citiesPowered":5,"artKey":"oil"},
+  {"id":"pp_36","number":36,"fuelType":["coal"],"fuelCapacity":3,"citiesPowered":7,"artKey":"coal"},
+  {"id":"pp_37","number":37,"fuelType":[],"fuelCapacity":0,"citiesPowered":4,"artKey":"wind"},
+  {"id":"pp_38","number":38,"fuelType":["garbage"],"fuelCapacity":3,"citiesPowered":7,"artKey":"garbage"},
+  {"id":"pp_39","number":39,"fuelType":["nuclear"],"fuelCapacity":1,"citiesPowered":6,"artKey":"nuclear"},
+  {"id":"pp_40","number":40,"fuelType":["oil"],"fuelCapacity":2,"citiesPowered":6,"artKey":"oil"},
+  {"id":"pp_42","number":42,"fuelType":["coal"],"fuelCapacity":2,"citiesPowered":6,"artKey":"coal"},
+  {"id":"pp_44","number":44,"fuelType":[],"fuelCapacity":0,"citiesPowered":5,"artKey":"wind"},
+  {"id":"pp_46","number":46,"fuelType":["coal","oil"],"fuelCapacity":3,"citiesPowered":7,"artKey":"hybrid"},
+  {"id":"pp_50","number":50,"fuelType":[],"fuelCapacity":0,"citiesPowered":6,"artKey":"wind"}
+][
+  {
+    "id": "pp_01",
+    "number": 1,
+    "power": 11,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_02",
+    "number": 2,
+    "power": 12,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_03",
+    "number": 3,
+    "power": 13,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_04",
+    "number": 4,
+    "power": 14,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_05",
+    "number": 5,
+    "power": 15,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_06",
+    "number": 6,
+    "power": 16,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_07",
+    "number": 7,
+    "power": 17,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_08",
+    "number": 8,
+    "power": 18,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_09",
+    "number": 9,
+    "power": 19,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_10",
+    "number": 10,
+    "power": 20,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 1,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_11",
+    "number": 11,
+    "power": 21,
+    "fuelType": [
+      "coal",
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "hybrid"
+  },
+  {
+    "id": "pp_12",
+    "number": 12,
+    "power": 22,
+    "fuelType": [
+      "garbage"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "garbage"
+  },
+  {
+    "id": "pp_13",
+    "number": 13,
+    "power": 23,
+    "fuelType": [
+      "coal",
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "hybrid"
+  },
+  {
+    "id": "pp_14",
+    "number": 14,
+    "power": 24,
+    "fuelType": [
+      "garbage"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "garbage"
+  },
+  {
+    "id": "pp_15",
+    "number": 15,
+    "power": 25,
+    "fuelType": [
+      "coal",
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "hybrid"
+  },
+  {
+    "id": "pp_16",
+    "number": 16,
+    "power": 26,
+    "fuelType": [
+      "garbage"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "garbage"
+  },
+  {
+    "id": "pp_17",
+    "number": 17,
+    "power": 27,
+    "fuelType": [
+      "coal",
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "hybrid"
+  },
+  {
+    "id": "pp_18",
+    "number": 18,
+    "power": 28,
+    "fuelType": [
+      "garbage"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "garbage"
+  },
+  {
+    "id": "pp_19",
+    "number": 19,
+    "power": 29,
+    "fuelType": [
+      "coal",
+      "oil"
+    ],
+    "fuelCapacity": 3,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "hybrid"
+  },
+  {
+    "id": "pp_20",
+    "number": 20,
+    "power": 30,
+    "fuelType": [
+      "garbage"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 1,
+    "citiesPowered": 2,
+    "artKey": "garbage"
+  },
+  {
+    "id": "pp_21",
+    "number": 21,
+    "power": 31,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_22",
+    "number": 22,
+    "power": 32,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_23",
+    "number": 23,
+    "power": 33,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_24",
+    "number": 24,
+    "power": 34,
+    "fuelType": [
+      "coal"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "coal"
+  },
+  {
+    "id": "pp_25",
+    "number": 25,
+    "power": 35,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_26",
+    "number": 26,
+    "power": 36,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_27",
+    "number": 27,
+    "power": 37,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_28",
+    "number": 28,
+    "power": 38,
+    "fuelType": [
+      "oil"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "oil"
+  },
+  {
+    "id": "pp_29",
+    "number": 29,
+    "power": 39,
+    "fuelType": [
+      "garbage"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "garbage"
+  },
+  {
+    "id": "pp_30",
+    "number": 30,
+    "power": 40,
+    "fuelType": [
+      "garbage"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 3,
+    "artKey": "garbage"
+  },
+  {
+    "id": "pp_31",
+    "number": 31,
+    "power": 41,
+    "fuelType": [
+      "nuclear"
+    ],
+    "fuelCapacity": 1,
+    "efficiency": 3,
+    "citiesPowered": 4,
+    "artKey": "nuclear"
+  },
+  {
+    "id": "pp_32",
+    "number": 32,
+    "power": 42,
+    "fuelType": [
+      "nuclear"
+    ],
+    "fuelCapacity": 1,
+    "efficiency": 3,
+    "citiesPowered": 4,
+    "artKey": "nuclear"
+  },
+  {
+    "id": "pp_33",
+    "number": 33,
+    "power": 43,
+    "fuelType": [
+      "nuclear"
+    ],
+    "fuelCapacity": 1,
+    "efficiency": 3,
+    "citiesPowered": 4,
+    "artKey": "nuclear"
+  },
+  {
+    "id": "pp_34",
+    "number": 34,
+    "power": 44,
+    "fuelType": [
+      "nuclear"
+    ],
+    "fuelCapacity": 1,
+    "efficiency": 3,
+    "citiesPowered": 4,
+    "artKey": "nuclear"
+  },
+  {
+    "id": "pp_35",
+    "number": 35,
+    "power": 45,
+    "fuelType": [
+      "coal",
+      "oil"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 4,
+    "artKey": "hybrid"
+  },
+  {
+    "id": "pp_36",
+    "number": 36,
+    "power": 46,
+    "fuelType": [
+      "coal",
+      "oil"
+    ],
+    "fuelCapacity": 2,
+    "efficiency": 2,
+    "citiesPowered": 4,
+    "artKey": "hybrid"
+  },
+  {
+    "id": "pp_37",
+    "number": 37,
+    "power": 47,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 4,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_38",
+    "number": 38,
+    "power": 48,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 4,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_39",
+    "number": 39,
+    "power": 49,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 4,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_40",
+    "number": 40,
+    "power": 50,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 4,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_41",
+    "number": 41,
+    "power": 51,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_42",
+    "number": 42,
+    "power": 52,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_43",
+    "number": 43,
+    "power": 53,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_44",
+    "number": 44,
+    "power": 54,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_45",
+    "number": 45,
+    "power": 55,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_46",
+    "number": 46,
+    "power": 56,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_47",
+    "number": 47,
+    "power": 57,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_48",
+    "number": 48,
+    "power": 58,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_49",
+    "number": 49,
+    "power": 59,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  },
+  {
+    "id": "pp_50",
+    "number": 50,
+    "power": 60,
+    "fuelType": [],
+    "fuelCapacity": 0,
+    "efficiency": 0,
+    "citiesPowered": 5,
+    "artKey": "wind"
+  }
+]

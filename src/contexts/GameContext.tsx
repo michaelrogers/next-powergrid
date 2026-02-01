@@ -23,6 +23,7 @@ export type GameAction =
   | { type: 'START_AUCTION'; payload: { plantId: string } }
   | { type: 'PLACE_BID'; payload: { playerId: string; amount: number } }
   | { type: 'AWARD_PLANT'; payload: { playerId: string } }
+  | { type: 'DISCARD_PLANT'; payload: { playerId: string; plantId: string } }
   | { type: 'PASS_AUCTION'; payload: { playerId: string } }
   | { type: 'BUY_FUEL'; payload: { playerId: string; fuelType: FuelType; quantity: number; cost: number } }
   | { type: 'BUILD_CITY'; payload: { playerId: string; cityId: string; cityName: string; cost: number } }
@@ -42,15 +43,52 @@ const initialGameState: GameState = {
   phase: GamePhase.SETUP,
   map: RegionMap.USA_EAST,
   availablePowerPlants: [],
+  actualMarket: [],
+  futuresMarket: [],
+  powerPlantDeck: [],
   fuelMarket: {
     coal: [],
     oil: [],
     garbage: [],
     nuclear: [],
   },
+  playersWithPlantsThisRound: new Set(),
   history: [],
 };
-
+// Helper function to find next player who hasn't won a plant this round
+function findNextPlayerNeedingPlant(
+  players: Player[], 
+  playersWithPlants: Set<string>, 
+  startAfterPlayerId?: string
+): Player | null {
+  if (playersWithPlants.size >= players.length) {
+    return null; // All players have plants
+  }
+  
+  let startIndex = 0;
+  if (startAfterPlayerId) {
+    const playerIndex = players.findIndex(p => p.id === startAfterPlayerId);
+    if (playerIndex !== -1) {
+      startIndex = playerIndex + 1;
+    }
+  }
+  
+  // Check players after the starting point
+  for (let i = startIndex; i < players.length; i++) {
+    if (!playersWithPlants.has(players[i].id)) {
+      return players[i];
+    }
+  }
+  
+  // Wrap around and check from beginning
+  for (let i = 0; i < startIndex; i++) {
+    if (!playersWithPlants.has(players[i].id)) {
+      return players[i];
+    }
+  }
+  
+  return null;
+}
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case 'INITIALIZE_GAME': {
@@ -62,7 +100,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // If not available yet, fallback to old map system
       const gameMap = (action.payload as any).gameMap;
       
-      const powerPlants = PowerGridEngine.createPowerPlants();
+      const allPlants = PowerGridEngine.createPowerPlants();
+      
+      // Sort all plants by number (ascending)
+      const sortedPlants = [...allPlants].sort((a, b) => a.number - b.number);
+      
+      // Split into actual market (4), futures market (4), and deck (rest)
+      const actualMarket = sortedPlants.slice(0, 4);
+      const futuresMarket = sortedPlants.slice(4, 8);
+      const powerPlantDeck = sortedPlants.slice(8);
       
       return {
         ...state,
@@ -73,7 +119,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         map: mapName,
         mapId: mapName, // Store map ID for loading GameMapV2 for Voronoi rendering
         gameMap: gameMap || USA_MAP,
-        availablePowerPlants: powerPlants,
+        availablePowerPlants: actualMarket, // For backwards compatibility
+        actualMarket,
+        futuresMarket,
+        powerPlantDeck,
         fuelMarket: {
           coal: Array.from({ length: 18 }, (_, i) => ({ price: 3 + Math.floor(i / 3), quantity: 1 })),
           oil: Array.from({ length: 14 }, (_, i) => ({ price: 3 + Math.floor(i / 2), quantity: 1 })),
@@ -84,18 +133,29 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'START_AUCTION': {
-      let plant = state.availablePowerPlants.find(p => p.id === action.payload.plantId);
+      // Only allow starting auction with plants from actual market
+      let plant = state.actualMarket.find(p => p.id === action.payload.plantId);
       
-      // If no specific plant, use first available
-      if (!plant && state.availablePowerPlants.length > 0) {
-        plant = state.availablePowerPlants[0];
+      // If no specific plant, use first in actual market
+      if (!plant && state.actualMarket.length > 0) {
+        plant = state.actualMarket[0];
       }
       
       if (!plant) return state;
       
-      // Initialize auction with all players as participants
-      const participants = new Set(state.players.map(p => p.id));
-      const firstPlayer = state.players[0];
+      // Initialize auction with only players who haven't won a plant this round
+      const participants = new Set(
+        state.players
+          .filter(p => !state.playersWithPlantsThisRound.has(p.id))
+          .map(p => p.id)
+      );
+      
+      // If no eligible participants, skip auction
+      if (participants.size === 0) {
+        return state;
+      }
+      
+      const firstPlayer = state.players.find(p => participants.has(p.id));
       
       return {
         ...state,
@@ -116,6 +176,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (playerIndex === -1) return state;
       
       const player = state.players[playerIndex];
+      
+      // Check 3-plant limit - if player has 3 plants, store pending award for discard selection
+      if (player.powerPlants.length >= 3) {
+        return {
+          ...state,
+          pendingPlantAward: {
+            playerId: action.payload.playerId,
+            plant: state.auction.powerPlant,
+            cost: state.auction.currentBid,
+          },
+        };
+      }
+      
       const updatedPlayer = PowerGridEngine.endAuction(state.auction, player);
       
       if (!updatedPlayer) return state;
@@ -123,13 +196,159 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const updatedPlayers = [...state.players];
       updatedPlayers[playerIndex] = updatedPlayer;
       
+      // Remove awarded plant from market and refresh
+      const removedPlantId = state.auction.powerPlant.id;
+      const newActualMarket = state.actualMarket.filter(p => p.id !== removedPlantId);
+      
+      // Draw new plant from deck if available
+      let newDeck = [...state.powerPlantDeck];
+      let newFuturesMarket = [...state.futuresMarket];
+      
+      if (newDeck.length > 0) {
+        const drawnPlant = newDeck[0];
+        newDeck = newDeck.slice(1);
+        
+        // Combine markets and drawn plant, then re-sort
+        const allMarketPlants = [...newActualMarket, ...newFuturesMarket, drawnPlant]
+          .sort((a, b) => a.number - b.number);
+        
+        // Split back into actual (4) and futures (4)
+        newActualMarket.splice(0, newActualMarket.length, ...allMarketPlants.slice(0, 4));
+        newFuturesMarket = allMarketPlants.slice(4, 8);
+      } else if (newFuturesMarket.length > 0) {
+        // No deck, move from futures to actual
+        const allMarketPlants = [...newActualMarket, ...newFuturesMarket]
+          .sort((a, b) => a.number - b.number);
+        newActualMarket.splice(0, newActualMarket.length, ...allMarketPlants.slice(0, 4));
+        newFuturesMarket = allMarketPlants.slice(4);
+      }
+      
+      // Add winner to players who won plants this round
+      const updatedPlayersWithPlants = new Set(state.playersWithPlantsThisRound);
+      updatedPlayersWithPlants.add(action.payload.playerId);
+      
+      // Find next player who hasn't won a plant yet
+      const nextPlayerWhoNeedsPlant = findNextPlayerNeedingPlant(
+        state.players,
+        updatedPlayersWithPlants,
+        action.payload.playerId
+      );
+      
+      // If all players have won plants, move to next phase
+      if (!nextPlayerWhoNeedsPlant) {
+        return {
+          ...state,
+          players: updatedPlayers,
+          actualMarket: newActualMarket,
+          futuresMarket: newFuturesMarket,
+          powerPlantDeck: newDeck,
+          availablePowerPlants: newActualMarket,
+          auction: undefined,
+          playersWithPlantsThisRound: updatedPlayersWithPlants,
+          phase: GamePhase.FUEL_PURCHASE,
+        };
+      }
+      
       return {
         ...state,
         players: updatedPlayers,
-        availablePowerPlants: state.availablePowerPlants.filter(
-          p => p.id !== state.auction?.powerPlant.id
-        ),
+        actualMarket: newActualMarket,
+        futuresMarket: newFuturesMarket,
+        powerPlantDeck: newDeck,
+        availablePowerPlants: newActualMarket, // Backwards compatibility
         auction: undefined,
+        playersWithPlantsThisRound: updatedPlayersWithPlants,
+        currentTurn: nextPlayerWhoNeedsPlant.id || 'player_1',
+      };
+    }
+
+    case 'DISCARD_PLANT': {
+      if (!state.pendingPlantAward) return state;
+      
+      const playerIndex = state.players.findIndex(p => p.id === action.payload.playerId);
+      if (playerIndex === -1) return state;
+      
+      const player = state.players[playerIndex];
+      const pendingAward = state.pendingPlantAward; // Store for type safety
+      
+      // Remove the discarded plant
+      const updatedPlants = player.powerPlants.filter(p => p.id !== action.payload.plantId);
+      
+      // Add the new plant and deduct money
+      const playerWithNewPlant = {
+        ...player,
+        powerPlants: [...updatedPlants, pendingAward.plant],
+        money: player.money - pendingAward.cost,
+      };
+      
+      const updatedPlayers = [...state.players];
+      updatedPlayers[playerIndex] = playerWithNewPlant;
+      
+      // Remove awarded plant from market and refresh
+      const removedPlantId = pendingAward.plant.id;
+      const newActualMarket = state.actualMarket.filter(p => p.id !== removedPlantId);
+      
+      // Draw new plant from deck if available
+      let newDeck = [...state.powerPlantDeck];
+      let newFuturesMarket = [...state.futuresMarket];
+      
+      if (newDeck.length > 0) {
+        const drawnPlant = newDeck[0];
+        newDeck = newDeck.slice(1);
+        
+        // Combine markets and drawn plant, then re-sort
+        const allMarketPlants = [...newActualMarket, ...newFuturesMarket, drawnPlant]
+          .sort((a, b) => a.number - b.number);
+        
+        // Split back into actual (4) and futures (4)
+        newActualMarket.splice(0, newActualMarket.length, ...allMarketPlants.slice(0, 4));
+        newFuturesMarket = allMarketPlants.slice(4, 8);
+      } else if (newFuturesMarket.length > 0) {
+        // No deck, move from futures to actual
+        const allMarketPlants = [...newActualMarket, ...newFuturesMarket]
+          .sort((a, b) => a.number - b.number);
+        newActualMarket.splice(0, newActualMarket.length, ...allMarketPlants.slice(0, 4));
+        newFuturesMarket = allMarketPlants.slice(4);
+      }
+      
+      // Add winner to players who won plants this round
+      const updatedPlayersWithPlants = new Set(state.playersWithPlantsThisRound);
+      updatedPlayersWithPlants.add(action.payload.playerId);
+      
+      // Find next player who hasn't won a plant yet
+      const nextPlayerWhoNeedsPlant = findNextPlayerNeedingPlant(
+        state.players,
+        updatedPlayersWithPlants,
+        action.payload.playerId
+      );
+      
+      // If all players have won plants, move to next phase
+      if (!nextPlayerWhoNeedsPlant) {
+        return {
+          ...state,
+          players: updatedPlayers,
+          actualMarket: newActualMarket,
+          futuresMarket: newFuturesMarket,
+          powerPlantDeck: newDeck,
+          availablePowerPlants: newActualMarket,
+          auction: undefined,
+          pendingPlantAward: undefined,
+          playersWithPlantsThisRound: updatedPlayersWithPlants,
+          phase: GamePhase.FUEL_PURCHASE,
+        };
+      }
+      
+      return {
+        ...state,
+        players: updatedPlayers,
+        actualMarket: newActualMarket,
+        futuresMarket: newFuturesMarket,
+        powerPlantDeck: newDeck,
+        availablePowerPlants: newActualMarket, // Backwards compatibility
+        auction: undefined,
+        pendingPlantAward: undefined,
+        playersWithPlantsThisRound: updatedPlayersWithPlants,
+        currentTurn: nextPlayerWhoNeedsPlant.id,
       };
     }
 
@@ -148,6 +367,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         round: state.round + 1,
         phase: GamePhase.AUCTION,
+        playersWithPlantsThisRound: new Set(), // Reset for new round
       };
 
     case 'PLACE_BID':
@@ -174,31 +394,149 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const updatedParticipants = new Set(state.auction.participants);
         updatedParticipants.delete(action.payload.playerId);
         
-        // If all passed (no one bid), plant is discarded
+        // If all passed (no one bid), plant is discarded and market refreshed
         if (updatedParticipants.size === 0) {
+          const removedPlantId = state.auction.powerPlant.id;
+          const newActualMarket = state.actualMarket.filter(p => p.id !== removedPlantId);
+          
+          // Draw new plant from deck if available
+          let newDeck = [...state.powerPlantDeck];
+          let newFuturesMarket = [...state.futuresMarket];
+          
+          if (newDeck.length > 0) {
+            const drawnPlant = newDeck[0];
+            newDeck = newDeck.slice(1);
+            
+            // Combine markets and drawn plant, then re-sort
+            const allMarketPlants = [...newActualMarket, ...newFuturesMarket, drawnPlant]
+              .sort((a, b) => a.number - b.number);
+            
+            // Split back into actual (4) and futures (4)
+            newActualMarket.splice(0, newActualMarket.length, ...allMarketPlants.slice(0, 4));
+            newFuturesMarket = allMarketPlants.slice(4, 8);
+          } else if (newFuturesMarket.length > 0) {
+            // No deck, move from futures to actual
+            const allMarketPlants = [...newActualMarket, ...newFuturesMarket]
+              .sort((a, b) => a.number - b.number);
+            newActualMarket.splice(0, newActualMarket.length, ...allMarketPlants.slice(0, 4));
+            newFuturesMarket = allMarketPlants.slice(4);
+          }
+          
+          // Find next player who needs a plant
+          const nextPlayerNeedingPlant = findNextPlayerNeedingPlant(
+            state.players,
+            state.playersWithPlantsThisRound
+          );
+          
+          // If all players have won, move to next phase
+          if (!nextPlayerNeedingPlant) {
+            return {
+              ...state,
+              auction: undefined,
+              actualMarket: newActualMarket,
+              futuresMarket: newFuturesMarket,
+              powerPlantDeck: newDeck,
+              availablePowerPlants: newActualMarket,
+              phase: GamePhase.FUEL_PURCHASE,
+            };
+          }
+          
           return {
             ...state,
             auction: undefined,
-            availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
-            currentTurn: state.players[0].id,
+            actualMarket: newActualMarket,
+            futuresMarket: newFuturesMarket,
+            powerPlantDeck: newDeck,
+            availablePowerPlants: newActualMarket,
+            currentTurn: nextPlayerNeedingPlant.id,
           };
         }
         
-        // If only 1 participant left and someone has bid, end auction
+        // If only 1 participant left and someone has bid, award plant automatically
         if (updatedParticipants.size === 1 && state.auction.highestBidder) {
           const winnerId = Array.from(updatedParticipants)[0];
           const winner = state.players.find(p => p.id === winnerId);
           
           if (winner && winner.money >= state.auction.currentBid) {
+            // Check 3-plant limit
+            if (winner.powerPlants.length >= 3) {
+              return {
+                ...state,
+                auction: {
+                  ...state.auction,
+                  participants: updatedParticipants,
+                },
+                pendingPlantAward: {
+                  playerId: winnerId,
+                  plant: state.auction.powerPlant,
+                  cost: state.auction.currentBid,
+                },
+              };
+            }
+            
             const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
             if (updatedWinner) {
               const updatedPlayers = state.players.map(p => p.id === winnerId ? updatedWinner : p);
+              
+              // Refresh market after awarding plant
+              const removedPlantId = state.auction.powerPlant.id;
+              const newActualMarket = state.actualMarket.filter(p => p.id !== removedPlantId);
+              
+              let newDeck = [...state.powerPlantDeck];
+              let newFuturesMarket = [...state.futuresMarket];
+              
+              if (newDeck.length > 0) {
+                const drawnPlant = newDeck[0];
+                newDeck = newDeck.slice(1);
+                
+                const allMarketPlants = [...newActualMarket, ...newFuturesMarket, drawnPlant]
+                  .sort((a, b) => a.number - b.number);
+                
+                newActualMarket.splice(0, newActualMarket.length, ...allMarketPlants.slice(0, 4));
+                newFuturesMarket = allMarketPlants.slice(4, 8);
+              } else if (newFuturesMarket.length > 0) {
+                const allMarketPlants = [...newActualMarket, ...newFuturesMarket]
+                  .sort((a, b) => a.number - b.number);
+                newActualMarket.splice(0, newActualMarket.length, ...allMarketPlants.slice(0, 4));
+                newFuturesMarket = allMarketPlants.slice(4);
+              }
+              
+              // Add winner to players who won plants this round
+              const updatedPlayersWithPlants = new Set(state.playersWithPlantsThisRound);
+              updatedPlayersWithPlants.add(winnerId);
+              
+              // Find next player who needs a plant
+              const nextPlayerNeedingPlant = findNextPlayerNeedingPlant(
+                state.players,
+                updatedPlayersWithPlants,
+                winnerId
+              );
+              
+              // If all players have won, move to next phase
+              if (!nextPlayerNeedingPlant) {
+                return {
+                  ...state,
+                  players: updatedPlayers,
+                  auction: undefined,
+                  actualMarket: newActualMarket,
+                  futuresMarket: newFuturesMarket,
+                  powerPlantDeck: newDeck,
+                  availablePowerPlants: newActualMarket,
+                  playersWithPlantsThisRound: updatedPlayersWithPlants,
+                  phase: GamePhase.FUEL_PURCHASE,
+                };
+              }
+              
               return {
                 ...state,
                 players: updatedPlayers,
                 auction: undefined,
-                availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
-                currentTurn: state.players[0].id,
+                actualMarket: newActualMarket,
+                futuresMarket: newFuturesMarket,
+                powerPlantDeck: newDeck,
+                availablePowerPlants: newActualMarket,
+                playersWithPlantsThisRound: updatedPlayersWithPlants,
+                currentTurn: nextPlayerNeedingPlant.id,
               };
             }
           }
@@ -305,6 +643,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const robotId = action.payload.playerId;
       const robot = state.players.find(p => p.id === robotId);
       
+      
       if (!robot || !robot.isRobot || !state.auction) {
         return state;
       }
@@ -313,6 +652,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!state.auction.participants.has(robotId)) {
         return state;
       }
+      
       
       // Get robot's difficulty and strategy
       const difficulty = robot.robotDifficulty || 'medium';
@@ -326,6 +666,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         strategy
       );
       
+      
       if (bidAmount !== null && bidAmount > 0) {
         // Place bid and advance to next participant
         const updatedAuction = PowerGridEngine.placeBid(state.auction, robotId, bidAmount);
@@ -334,6 +675,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           const currentIndex = activeParticipants.indexOf(robotId);
           const nextIndex = (currentIndex + 1) % activeParticipants.length;
           const nextPlayerId = activeParticipants[nextIndex];
+          
           
           return {
             ...state,
@@ -346,13 +688,72 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const updatedParticipants = new Set(state.auction.participants);
         updatedParticipants.delete(robotId);
         
-        // If all passed, discard plant
+        // If all passed, award to highest bidder if possible, otherwise discard plant
         if (updatedParticipants.size === 0) {
+          if (state.auction.highestBidder) {
+            const winnerId = state.auction.highestBidder;
+            const winner = state.players.find(p => p.id === winnerId);
+            
+            if (winner && winner.money >= state.auction.currentBid) {
+              const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
+              if (updatedWinner) {
+                const updatedPlayers = state.players.map(p => p.id === winnerId ? updatedWinner : p);
+                
+                // Add winner to players who won plants this round
+                const updatedPlayersWithPlants = new Set(state.playersWithPlantsThisRound);
+                updatedPlayersWithPlants.add(winnerId);
+                
+                // Find next player who needs a plant
+                const nextPlayerNeedingPlant = findNextPlayerNeedingPlant(
+                  state.players,
+                  updatedPlayersWithPlants,
+                  winnerId
+                );
+                
+                
+                if (!nextPlayerNeedingPlant) {
+                  return {
+                    ...state,
+                    players: updatedPlayers,
+                    auction: undefined,
+                    availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+                    playersWithPlantsThisRound: updatedPlayersWithPlants,
+                    phase: GamePhase.FUEL_PURCHASE,
+                  };
+                }
+                
+                return {
+                  ...state,
+                  players: updatedPlayers,
+                  auction: undefined,
+                  availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+                  playersWithPlantsThisRound: updatedPlayersWithPlants,
+                  currentTurn: nextPlayerNeedingPlant.id,
+                };
+              }
+            }
+          }
+          
+          // Find next player who needs a plant
+          const nextPlayerNeedingPlant = findNextPlayerNeedingPlant(
+            state.players,
+            state.playersWithPlantsThisRound
+          );
+          
+          if (!nextPlayerNeedingPlant) {
+            return {
+              ...state,
+              auction: undefined,
+              availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+              phase: GamePhase.FUEL_PURCHASE,
+            };
+          }
+          
           return {
             ...state,
             auction: undefined,
             availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
-            currentTurn: state.players[0].id,
+            currentTurn: nextPlayerNeedingPlant.id,
           };
         }
         
@@ -365,19 +766,66 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             const updatedWinner = PowerGridEngine.endAuction(state.auction, winner);
             if (updatedWinner) {
               const updatedPlayers = state.players.map(p => p.id === winnerId ? updatedWinner : p);
+              
+              // Add winner to players who won plants this round
+              const updatedPlayersWithPlants = new Set(state.playersWithPlantsThisRound);
+              updatedPlayersWithPlants.add(winnerId);
+              
+              // Find next player who needs a plant
+              const nextPlayerNeedingPlant = findNextPlayerNeedingPlant(
+                state.players,
+                updatedPlayersWithPlants,
+                winnerId
+              );
+              
+              
+              if (!nextPlayerNeedingPlant) {
+                return {
+                  ...state,
+                  players: updatedPlayers,
+                  auction: undefined,
+                  availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
+                  playersWithPlantsThisRound: updatedPlayersWithPlants,
+                  phase: GamePhase.FUEL_PURCHASE,
+                };
+              }
+              
               return {
                 ...state,
                 players: updatedPlayers,
                 auction: undefined,
                 availablePowerPlants: state.availablePowerPlants.filter(p => p.id !== state.auction!.powerPlant.id),
-                currentTurn: state.players[0].id,
+                playersWithPlantsThisRound: updatedPlayersWithPlants,
+                currentTurn: nextPlayerNeedingPlant.id,
               };
             }
           }
         } else {
-          // Move to next participant
+          // Move to next participant (cycling)
           const remainingPlayers = Array.from(updatedParticipants);
-          const nextPlayer = remainingPlayers[0];
+          
+          // Find where the current robot would be in the list (for cycling)
+          const allParticipants = Array.from(state.auction.participants);
+          const currentIndex = allParticipants.indexOf(robotId);
+          
+          // Find next participant cyclically from current position
+          let nextPlayer: string;
+          let searchIndex = (currentIndex + 1) % allParticipants.length;
+          let attempts = 0;
+          
+          // Keep looking for a remaining participant
+          while (attempts < allParticipants.length && !updatedParticipants.has(allParticipants[searchIndex])) {
+            searchIndex = (searchIndex + 1) % allParticipants.length;
+            attempts++;
+          }
+          
+          if (attempts < allParticipants.length) {
+            nextPlayer = allParticipants[searchIndex];
+          } else {
+            // Fallback: just take first remaining (shouldn't happen)
+            nextPlayer = remainingPlayers[0];
+          }
+          
           
           return {
             ...state,

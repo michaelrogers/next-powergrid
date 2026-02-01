@@ -25,10 +25,10 @@ export enum RegionMap {
 export interface PowerPlant {
   id: string;
   number: number;
-  power: number; // megawatts
   fuelType: FuelType[];
   fuelCapacity: number;
-  efficiency: number; // power output per fuel unit
+  citiesPowered?: number;
+  artKey?: 'oil' | 'hybrid' | 'wind' | 'coal' | 'garbage' | 'nuclear';
 }
 
 export interface PlayerResource {
@@ -60,9 +60,18 @@ export interface GameState {
   map: RegionMap | string; // region map name
   mapId?: string; // ID for loading GameMapV2 from trace files
   gameMap?: GameMap; // detailed map object
-  availablePowerPlants: PowerPlant[];
+  availablePowerPlants: PowerPlant[]; // Deprecated - use actualMarket instead
+  actualMarket: PowerPlant[]; // Top 4 plants - biddable
+  futuresMarket: PowerPlant[]; // Next 4 plants - preview only
+  powerPlantDeck: PowerPlant[]; // Remaining plants in deck
   fuelMarket: Record<FuelType, FuelMarketEntry[]>;
   auction?: AuctionState;
+  pendingPlantAward?: {
+    playerId: string;
+    plant: PowerPlant;
+    cost: number;
+  };
+  playersWithPlantsThisRound: Set<string>; // Players who won plants this round - can't participate in more auctions
   history: GameEvent[];
 }
 
