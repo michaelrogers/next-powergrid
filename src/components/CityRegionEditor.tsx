@@ -834,7 +834,7 @@ export default function CityRegionEditor({ mapId }: Props) {
                         <circle
                           cx={s.x}
                           cy={s.y}
-                          r={isSelected ? 12 : 10}
+                          r={isSelected ? 16 : 14}
                           fill="none"
                           stroke="#ef4444"
                           strokeWidth={2}
@@ -842,36 +842,72 @@ export default function CityRegionEditor({ mapId }: Props) {
                           style={{ pointerEvents: 'none' }}
                         />
                       )}
-                      <circle
-                        cx={s.x}
-                        cy={s.y}
-                        r={isSelected ? 8 : 6}
-                        fill={isOutsideBorder ? '#ef4444' : (region?.regionColor || '#999')}
-                        stroke={isSelected ? '#fff' : (isOutsideBorder ? '#ef4444' : '#ccc')}
-                        strokeWidth={isSelected ? 2 : 1}
-                        opacity={0.9}
-                        style={{ cursor: 'grab' }}
-                        onPointerDown={(e) => {
-                          e.stopPropagation();
-                          handlePointerDown(e as any, city.id);
-                        }}
-                      />
-                      {/* City name - always visible */}
-                      <text
-                        x={s.x}
-                        y={s.y - 16}
-                        textAnchor="middle"
-                        fill={isSelected ? 'white' : (isOutsideBorder ? '#ef4444' : '#cbd5e1')}
-                        fontSize="12"
-                        fontWeight={isSelected ? 'bold' : 'normal'}
-                        style={{ pointerEvents: 'none', userSelect: 'none' }}
-                      >
-                        {city.name}
-                      </text>
+                      {(() => {
+                        const shieldWidth = 20;
+                        const shieldTop = s.y - 12;
+                        const shieldLeft = s.x - shieldWidth / 2;
+                        const shieldRight = s.x + shieldWidth / 2;
+                        const shieldMid = s.y + 4;
+                        const shieldBottom = s.y + 14;
+                        const ribbonTop = s.y + 2;
+                        const ribbonBottom = s.y + 11;
+                        const labelText = city.name;
+                        const labelWidth = Math.max(14, labelText.length * 3.9 + 2);
+                        const ribbonLeft = s.x - labelWidth / 2;
+                        const ribbonRight = s.x + labelWidth / 2;
+                        const labelScaleX = Math.min(1, 10 / Math.max(1, labelText.length));
+
+                        return (
+                          <>
+                            <path
+                              d={`M ${shieldLeft} ${shieldTop} L ${shieldRight} ${shieldTop} L ${shieldRight - 2} ${shieldMid} L ${s.x} ${shieldBottom} L ${shieldLeft + 2} ${shieldMid} Z`}
+                              fill={isOutsideBorder ? '#ef4444' : (region?.regionColor || '#999')}
+                              stroke={isSelected ? '#fff' : (isOutsideBorder ? '#ef4444' : '#ccc')}
+                              strokeWidth={isSelected ? 2 : 1.2}
+                              opacity={0.95}
+                              style={{ cursor: 'grab' }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                handlePointerDown(e as any, city.id);
+                              }}
+                            />
+                            <circle
+                              cx={s.x}
+                              cy={s.y - 2}
+                              r={3.2}
+                              fill="white"
+                              opacity={0.9}
+                              style={{ pointerEvents: 'none' }}
+                            />
+                            {/* City label ribbon */}
+                            <g className="pointer-events-none select-none">
+                              <path
+                                d={`M ${ribbonLeft - 0.5} ${ribbonTop} L ${ribbonRight + 0.5} ${ribbonTop} L ${ribbonRight - 0.5} ${ribbonBottom} L ${ribbonLeft + 0.5} ${ribbonBottom} Z`}
+                                fill="#0f172a"
+                                stroke="white"
+                                strokeWidth="0.8"
+                                opacity={0.9}
+                              />
+                              <text
+                                x={s.x}
+                                y={ribbonTop + 7}
+                                textAnchor="middle"
+                                fill={isSelected ? 'white' : (isOutsideBorder ? '#ef4444' : '#e2e8f0')}
+                                fontSize="7"
+                                fontWeight={isSelected ? 'bold' : 'normal'}
+                                style={{ userSelect: 'none', letterSpacing: '-0.2px' }}
+                                transform={`translate(${s.x} ${ribbonTop + 7}) scale(${labelScaleX} 1) translate(${-s.x} ${-(ribbonTop + 7)})`}
+                              >
+                                {labelText}
+                              </text>
+                            </g>
+                          </>
+                        );
+                      })()}
                       {isOutsideBorder && (
                         <text
                           x={s.x}
-                          y={s.y - 28}
+                          y={s.y - 22}
                           textAnchor="middle"
                           fill="#ef4444"
                           fontSize="16"

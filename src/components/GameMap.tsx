@@ -324,6 +324,19 @@ export default function GameMapComponent({
             const isHovered = hoveredCity === city.id;
             const color = getCityColor(city.id);
             const isClickable = buildMode;
+            const shieldWidth = 20;
+            const shieldTop = y - 12;
+            const shieldLeft = x - shieldWidth / 2;
+            const shieldRight = x + shieldWidth / 2;
+            const shieldMid = y + 4;
+            const shieldBottom = y + 14;
+            const ribbonTop = y + 2;
+            const ribbonBottom = y + 11;
+            const labelText = city.name;
+            const labelWidth = Math.max(14, labelText.length * 3.9 + 2);
+            const ribbonLeft = x - labelWidth / 2;
+            const ribbonRight = x + labelWidth / 2;
+            const labelScaleX = Math.min(1, 10 / Math.max(1, labelText.length));
 
             return (
               <g
@@ -338,7 +351,7 @@ export default function GameMapComponent({
                   <circle
                     cx={x}
                     cy={y}
-                    r={12}
+                    r={16}
                     fill="none"
                     stroke="#fbbf24"
                     strokeWidth="2"
@@ -351,7 +364,7 @@ export default function GameMapComponent({
                   <circle
                     cx={x}
                     cy={y}
-                    r={10}
+                    r={14}
                     fill="none"
                     stroke="#60a5fa"
                     strokeWidth="2"
@@ -359,33 +372,47 @@ export default function GameMapComponent({
                   />
                 )}
 
-                {/* City circle */}
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={6}
+                {/* City shield marker */}
+                {/* Shield base */}
+                <path
+                  d={`M ${shieldLeft} ${shieldTop} L ${shieldRight} ${shieldTop} L ${shieldRight - 2} ${shieldMid} L ${x} ${shieldBottom} L ${shieldLeft + 2} ${shieldMid} Z`}
                   fill={color}
                   stroke="white"
-                  strokeWidth="1.5"
-                  opacity={isHovered ? 1 : 0.85}
+                  strokeWidth="1.6"
+                  opacity={isHovered ? 1 : 0.9}
+                />
+                <circle
+                  cx={x}
+                  cy={y - 2}
+                  r={3.2}
+                  fill="white"
+                  opacity={isHovered ? 0.95 : 0.85}
                 />
 
-                {/* City label - always visible */}
-                <g>
+                {/* Ribbon name band */}
+                <g className="pointer-events-none select-none">
+                  <path
+                    d={`M ${ribbonLeft - 0.5} ${ribbonTop} L ${ribbonRight + 0.5} ${ribbonTop} L ${ribbonRight - 0.5} ${ribbonBottom} L ${ribbonLeft + 0.5} ${ribbonBottom} Z`}
+                    fill="#0f172a"
+                    stroke="white"
+                    strokeWidth="0.8"
+                    opacity={isHovered ? 0.95 : 0.85}
+                  />
                   <text
                     x={x}
-                    y={y + 18}
+                    y={ribbonTop + 7}
                     textAnchor="middle"
-                    fontSize="10"
+                    fontSize="7"
                     fill="white"
                     fontWeight="bold"
-                    className="pointer-events-none select-none drop-shadow"
                     style={{
-                      textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-                      filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.9))',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                      filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.8))',
+                      letterSpacing: '-0.2px',
                     }}
+                    transform={`translate(${x} ${ribbonTop + 7}) scale(${labelScaleX} 1) translate(${-x} ${-(ribbonTop + 7)})`}
                   >
-                    {city.name}
+                    {labelText}
                   </text>
                 </g>
 
