@@ -175,7 +175,7 @@ export default function GameMapComponent({
               d={countryOutlinePath}
               fill="none"
               stroke="#fbbf24"
-              strokeWidth="1.2"
+              strokeWidth="0.6"
               strokeOpacity="1"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -197,7 +197,7 @@ export default function GameMapComponent({
                       fill={region.region.regionColor}
                       fillOpacity="0.08"
                       stroke={region.region.regionColor}
-                      strokeWidth="1"
+                      strokeWidth="0.5"
                       strokeOpacity="0.15"
                       strokeLinejoin="round"
                       shapeRendering="crispEdges"
@@ -248,7 +248,7 @@ export default function GameMapComponent({
                         height={maxY - minY + padding * 2}
                         fill="none"
                         stroke="#3b82f6"
-                        strokeWidth="2"
+                        strokeWidth="1"
                         opacity="0.4"
                         rx="8"
                       />
@@ -307,7 +307,7 @@ export default function GameMapComponent({
               x2={x2}
               y2={y2}
               stroke="#475569"
-              strokeWidth="2"
+              strokeWidth="1"
               opacity="0.4"
             />
           );

@@ -5,11 +5,101 @@
 
 'use client';
 
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useRef } from 'react';
 import { GameState, GamePhase, Player, GameConfig, RegionMap, FuelType } from '@/types/game';
 import { RobotAI } from '@/lib/robotAI';
 import { PowerGridEngine } from '@/lib/gameEngine';
-import { getMapByName, USA_MAP } from '@/lib/mapData';
+import { getMapByName, USA_MAP, MAPS, GameMap } from '@/lib/mapData';
+
+// Global cache for loaded maps from API
+const mapCache = new Map<string, GameMap>();
+
+async function loadMapFromAPI(mapId: string): Promise<GameMap | null> {
+  if (mapCache.has(mapId)) {
+    return mapCache.get(mapId) || null;
+  }
+
+  try {
+    const response = await fetch(`/api/cities?mapId=${mapId}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.ok && data.data) {
+        // Transform API data into GameMap format
+        const citiesPayload = data.data;
+        const gameMap = transformCitiesToGameMap(mapId, citiesPayload, MAPS[mapId.toLowerCase()]);
+        if (gameMap) {
+          mapCache.set(mapId, gameMap);
+          return gameMap;
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`Failed to load map ${mapId} from API:`, err);
+  }
+  return null;
+}
+
+// Transform API cities data into GameMap format
+function transformCitiesToGameMap(mapId: string, payload: any, fallbackMap?: GameMap): GameMap | null {
+  if (!payload || !payload.regions || !payload.cities) {
+    return fallbackMap || null;
+  }
+
+  try {
+    // Reconstruct cities with region info
+    const citiesById = new Map<string, any>();
+    payload.cities.forEach((city: any) => {
+      citiesById.set(city.id, city);
+    });
+
+    // Build regions with their cities
+    const regions = payload.regions.map((region: any) => {
+      const regionCities = (region.cityIds || [])
+        .map((cityId: string) => {
+          const city = citiesById.get(cityId);
+          if (!city) return null;
+          return {
+            id: city.id,
+            name: city.name,
+            x: city.x,
+            y: city.y,
+            region: region.id,
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        id: region.id,
+        name: region.name,
+        costMultiplier: region.costMultiplier || 1.0,
+        regionColor: region.regionColor,
+        regionOutline: region.regionOutline,
+        adjacencies: region.adjacencies,
+        cities: regionCities,
+      };
+    });
+
+    const gameMap: GameMap = {
+      id: mapId,
+      name: fallbackMap?.name || 'Map',
+      width: fallbackMap?.width || 1000,
+      height: fallbackMap?.height || 600,
+      regions,
+      connections: payload.connections || [],
+      countryOutline: fallbackMap?.countryOutline,
+    };
+
+    return gameMap;
+  } catch (err) {
+    console.error(`Failed to transform cities data for ${mapId}:`, err);
+    return fallbackMap || null;
+  }
+}
+
+export async function ensureMapLoaded(mapId: string): Promise<GameMap> {
+  const loadedMap = await loadMapFromAPI(mapId);
+  return loadedMap || MAPS[mapId.toLowerCase()] || USA_MAP;
+}
 
 interface GameContextType {
   state: GameState;
@@ -29,7 +119,8 @@ export type GameAction =
   | { type: 'END_ROUND' }
   | { type: 'RESET_GAME' }
   | { type: 'SET_CURRENT_TURN'; payload: { playerId: string } }
-  | { type: 'ROBOT_TURN'; payload: { playerId: string } };
+  | { type: 'ROBOT_TURN'; payload: { playerId: string } }
+  | { type: 'SET_GAME_MAP'; payload: { gameMap: GameMap } };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
@@ -55,7 +146,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const mapName = typeof action.payload.config.map === 'string' 
         ? action.payload.config.map 
         : 'usa';
-      const gameMap = getMapByName(mapName) || USA_MAP;
+      // Use cached map if available, otherwise fall back to hardcoded
+      const gameMap = mapCache.get(mapName) || getMapByName(mapName) || USA_MAP;
       const powerPlants = PowerGridEngine.createPowerPlants();
       
       return {
@@ -232,6 +324,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return state;
     }
 
+    case 'SET_GAME_MAP': {
+      return {
+        ...state,
+        gameMap: action.payload.gameMap,
+      };
+    }
+
     case 'RESET_GAME':
       return initialGameState;
 
@@ -242,6 +341,29 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialGameState);
+  const loadedMapsRef = useRef<Set<string>>(new Set());
+
+  // Preload maps from API on mount
+  useEffect(() => {
+    const preloadMaps = async () => {
+      const mapIds = ['usa', 'germany', 'france'];
+      
+      for (const mapId of mapIds) {
+        if (!loadedMapsRef.current.has(mapId)) {
+          try {
+            const loadedMap = await loadMapFromAPI(mapId);
+            if (loadedMap) {
+              loadedMapsRef.current.add(mapId);
+            }
+          } catch (err) {
+            console.error(`Failed to preload map ${mapId}:`, err);
+          }
+        }
+      }
+    };
+
+    preloadMaps();
+  }, []);
 
   return (
     <GameContext.Provider value={{ state, dispatch }}>
