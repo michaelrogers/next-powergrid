@@ -59,9 +59,15 @@ function GameSetup() {
         
         {/* Development Tools Links */}
         <div className="flex justify-center mb-6 text-sm">
-          <Link href="/editor" className="text-emerald-400 hover:text-emerald-300 transition-colors">
-            🗺️ Map Editor
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/editor" className="text-emerald-400 hover:text-emerald-300 transition-colors">
+              🗺️ Map Editor
+            </Link>
+            <span className="text-slate-600">•</span>
+            <Link href="/plants/editor" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+              ⚙️ Plant Editor
+            </Link>
+          </div>
         </div>
 
         <div className="space-y-6">

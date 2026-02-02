@@ -430,66 +430,47 @@ export default function GameBoard() {
                       </div>
                     </div>
 
-                    {/* Power Plants */}
-                    {player.powerPlants.length > 0 && (
-                      <div className="mt-1">
-                        <p className="text-[11px] text-gray-400 mb-1">Power Plants:</p>
-                        <div className="space-y-1">
-                          {player.powerPlants.map((plant) => (
-                            <div
-                              key={plant.id}
-                              className="bg-slate-700 rounded px-2 py-1.5 border border-slate-600 hover:border-yellow-500 transition-colors group relative"
-                              title={`Plant #${plant.number}: ${plant.citiesPowered} cities, ${plant.fuelCapacity} fuel`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[11px] font-bold text-yellow-400">#{plant.number}</span>
-                                  <span className="text-[11px] text-slate-300">⚡{plant.citiesPowered ?? 0}</span>
-                                </div>
-                                <span className="text-[10px] text-slate-400">
-                                  Cap: <span className="text-slate-200 font-semibold">{plant.fuelCapacity}</span>
-                                </span>
-                              </div>
-                              <div className="mt-0.5 flex items-center justify-between text-[10px] text-slate-400">
-                                <div>
-                                  Fuel: <span className="text-slate-200">
-                                    {plant.fuelType.length === 0 ? 'Renewable' : plant.fuelType.join(' / ')}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  {plant.fuelType.length === 0 ? (
-                                    <span className="text-slate-300">♻️</span>
-                                  ) : (
-                                    plant.fuelType.map((fuel) => (
-                                      <span
-                                        key={fuel}
-                                        className="inline-flex h-2.5 w-2.5 rounded-full border border-slate-500"
-                                        style={{ backgroundColor: FUEL_COLORS[fuel] }}
-                                        title={fuel}
-                                      />
-                                    ))
-                                  )}
-                                </div>
-                              </div>
+                    {/* Power Plants - Always show 3 slots horizontally */}
+                    <div className="mt-1">
+                      <p className="text-[11px] text-gray-400 mb-1">Power Plants ({player.powerPlants.length}/3):</p>
+                      <div className="flex gap-1">
+                        {/* Show actual power plants */}
+                        {player.powerPlants.map((plant) => (
+                          <div
+                            key={plant.id}
+                            className="flex-1 bg-slate-700 rounded px-1.5 py-1 border border-slate-600 hover:border-yellow-500 transition-colors group relative"
+                            title={`Plant #${plant.number}: ${plant.citiesPowered} cities, ${plant.fuelCapacity} fuel`}
+                          >
+                            <div className="flex flex-col items-center text-center">
+                              <span className="text-[11px] font-bold text-yellow-400">#{plant.number}</span>
+                              <span className="text-[10px] text-slate-300">⚡{plant.citiesPowered ?? 0}</span>
+                              <span className="text-[9px] text-slate-400">Cap: {plant.fuelCapacity}</span>
+                            </div>
 
-                              {/* Tooltip on hover */}
-                              <div className="absolute bottom-full left-0 mb-1 hidden group-hover:block z-10 bg-slate-900 border border-slate-600 rounded p-2 text-xs whitespace-nowrap shadow-lg">
-                                <div className="font-bold text-yellow-400">Plant #{plant.number}</div>
-                                <div className="text-slate-300">Cities: {plant.citiesPowered}</div>
-                                <div className="text-slate-300">Fuel: {plant.fuelCapacity}</div>
-                                <div className="text-slate-300">
-                                  Type: {plant.fuelType.length === 0 ? 'Renewable' : plant.fuelType.join('/')}
-                                </div>
+                            {/* Tooltip on hover */}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10 bg-slate-900 border border-slate-600 rounded p-2 text-xs whitespace-nowrap shadow-lg">
+                              <div className="font-bold text-yellow-400">Plant #{plant.number}</div>
+                              <div className="text-slate-300">Cities: {plant.citiesPowered}</div>
+                              <div className="text-slate-300">Fuel: {plant.fuelCapacity}</div>
+                              <div className="text-slate-300">
+                                Type: {plant.fuelType.length === 0 ? 'Renewable' : plant.fuelType.join('/')}
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
+                        
+                        {/* Show empty placeholder slots */}
+                        {Array.from({ length: 3 - player.powerPlants.length }).map((_, idx) => (
+                          <div
+                            key={`empty-slot-${idx}`}
+                            className="flex-1 bg-slate-700/30 rounded px-1.5 py-1 border border-dashed border-slate-600 flex items-center justify-center min-h-[3.5rem]"
+                            title="Empty power plant slot"
+                          >
+                            <span className="text-[9px] text-slate-500 text-center">Empty</span>
+                          </div>
+                        ))}
                       </div>
-                    )}
-
-                    {player.powerPlants.length === 0 && (
-                      <p className="text-xs text-slate-500 italic mt-1">No power plants</p>
-                    )}
+                    </div>
                   </div>
                 );
               })}

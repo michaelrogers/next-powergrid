@@ -57,12 +57,12 @@ export default function CityRegionEditor({ mapId }: Props) {
     }
   }, [normalizedId]);
   
-  // State
+  // State - always initialize with defaults, never conditionally
   const [cities, setCities] = useState<any[]>([]);
   const [regions, setRegions] = useState<RegionDefinition[]>([]);
   const [connections, setConnections] = useState<ConnectionDefinition[]>([]);
   
-  // Initialize state from loaded map
+  // Sync state with mapData when it loads
   useEffect(() => {
     if (mapData) {
       setCities(mapData.cities || []);
@@ -87,7 +87,6 @@ export default function CityRegionEditor({ mapId }: Props) {
   const [renderedRegions, setRenderedRegions] = useState<RenderedRegion[]>([]);
   const [countryOutlinePath, setCountryOutlinePath] = useState<string | null>(null);
   const [boundaryPolygon, setBoundaryPolygon] = useState<Array<{ x: number; y: number }> | null>(null);
-  const [map, setMap] = useState<any>(null);
   const [draggedCityId, setDraggedCityId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -154,7 +153,7 @@ export default function CityRegionEditor({ mapId }: Props) {
   // Compute Voronoi regions asynchronously after cities/regions change - debounced
   // This recalculates only when user edits cities or regions
   useEffect(() => {
-    if (!map || cities.length === 0 || regions.length === 0) {
+    if (!mapData || cities.length === 0 || regions.length === 0) {
       setRenderedRegions([]);
       return;
     }
@@ -170,7 +169,7 @@ export default function CityRegionEditor({ mapId }: Props) {
     // Debounce for responsive updates after drag ends
     timeoutId = setTimeout(() => {
       const computeRegions = () => {
-        const voronoiRegions = renderRegionsWithVoronoi({ ...map, cities, regions }, boundaryPolygon);
+        const voronoiRegions = renderRegionsWithVoronoi({ ...mapData, cities, regions }, boundaryPolygon);
         setRenderedRegions(voronoiRegions);
       };
       
@@ -183,7 +182,7 @@ export default function CityRegionEditor({ mapId }: Props) {
       clearTimeout(timeoutId);
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [map, cities, regions, draggedCityId, boundaryPolygon]);
+  }, [mapData, cities, regions, draggedCityId, boundaryPolygon]);
 
   // SVG coordinate helpers - memoized (MUST be before early return)
   const toScreen = useCallback((pt: { x: number; y: number }) => ({
@@ -286,10 +285,6 @@ export default function CityRegionEditor({ mapId }: Props) {
     }
     setCitiesOutsideBorder(outsideCities);
   }, [cities, boundaryPolygon, isPointInPolygon]);
-
-  if (!mapData) {
-    return <div className="p-4 text-red-500">{loading ? 'Loading map...' : `Map not found: ${resolvedMapId}`}</div>;
-  }
 
   // Event handlers
   const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
@@ -564,6 +559,11 @@ export default function CityRegionEditor({ mapId }: Props) {
     }
   };
 
+  // Show loading state if map is not ready
+  if (!mapData) {
+    return <div className="p-4 text-red-500">{loading ? 'Loading map...' : `Map not found: ${resolvedMapId}`}</div>;
+  }
+
   return (
     <main className="w-full h-screen bg-slate-900 text-white flex flex-col">
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
@@ -579,7 +579,7 @@ export default function CityRegionEditor({ mapId }: Props) {
                   ← All Maps
                 </Link>
               </div>
-              <h1 className="text-2xl font-bold">{map.name} - City Region Editor</h1>
+              <h1 className="text-2xl font-bold">{mapData.name} - City Region Editor</h1>
               {citiesOutsideBorder.size > 0 && (
                 <div className="text-sm text-red-400 mt-1">
                   ⚠ {citiesOutsideBorder.size} {citiesOutsideBorder.size === 1 ? 'city' : 'cities'} outside border
@@ -695,6 +695,8 @@ export default function CityRegionEditor({ mapId }: Props) {
               {/* Region labels (unclipped so they can extend past border) */}
               <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
                 {countryOutlinePath && renderedRegions.map((r, idx) => (
+                  r.centroid.x !== null && r.centroid.x !== undefined && !isNaN(r.centroid.x) && 
+                  r.centroid.y !== null && r.centroid.y !== undefined && !isNaN(r.centroid.y) ? (
                   <text
                     key={`region-label-${idx}`}
                     x={r.centroid.x}
@@ -713,6 +715,7 @@ export default function CityRegionEditor({ mapId }: Props) {
                   >
                     {r.region.name}
                   </text>
+                ) : null
                 ))}
               </g>
 
