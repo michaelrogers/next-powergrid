@@ -1041,17 +1041,7 @@ export default function FullMapEditor({ mapId }: Props) {
                 {/* Voronoi Region Suggester - shows suggested boundaries based on city seed points */}
                 {editMode === 'polygons' && cities.length > 0 && (
                   <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
-                    <VoronoiSuggester
-                      cities={cities}
-                      mapBounds={map}
-                      targetRegionCount={map.regions.length}
-                      zoom={zoom}
-                      pan={pan}
-                      svgWidth={map.width}
-                      svgHeight={map.height}
-                      opacity={0.12}
-                      showAdjacentRegionLabels={true}
-                    />
+                    {/* VoronoiSuggester requires GameMapV2 - skipping in legacy editor */}
                   </g>
                 )}
 

@@ -21,6 +21,12 @@ export default function DevtoolsPage() {
               >
                 Go to Map Editor →
               </Link>
+              <Link
+                href="/plants/editor"
+                className="ml-3 inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-semibold transition-colors"
+              >
+                Power Plant Editor →
+              </Link>
             </div>
           </div>
         </div>

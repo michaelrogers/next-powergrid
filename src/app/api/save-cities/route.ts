@@ -5,14 +5,29 @@ import path from 'path';
 type CityData = {
   id: string;
   name: string;
-  regionId: string;
+  regionId?: string;
   x: number;
   y: number;
+};
+
+type RegionData = {
+  id: string;
+  name: string;
+  regionColor: string;
+  cityIds: string[];
+};
+
+type ConnectionData = {
+  cityA: string;
+  cityB: string;
+  cost?: number;
 };
 
 type Payload = {
   mapId: string;
   cities: CityData[];
+  regions?: RegionData[];
+  connections?: ConnectionData[];
 };
 
 export async function POST(req: Request) {
@@ -32,6 +47,8 @@ export async function POST(req: Request) {
     const content = {
       mapId: payload.mapId,
       cities: payload.cities,
+      regions: payload.regions || [],
+      connections: payload.connections || [],
       lastUpdated: new Date().toISOString(),
     };
 

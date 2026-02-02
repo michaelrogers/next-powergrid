@@ -1,6 +1,6 @@
 /**
  * Interactive Game Map Component
- * Displays the PowerGrid map with cities and networks
+ * Displays the PowerGrid map with cities, Voronoi regions, and networks
  */
 
 'use client';
@@ -9,9 +9,14 @@ import { useEffect, useState } from 'react';
 import { GameMap, City } from '@/lib/mapData';
 import { buildOutlinePath, getPolygonsFromGeoJson, selectBestPolygon, GeoJson } from '@/lib/geojsonOutline';
 import { Player } from '@/types/game';
+import { getVoronoiRegions } from '@/lib/voronoiCache';
+import { getCachedMap } from '@/lib/mapCache';
+import type { RenderedRegion } from '@/lib/voronoiRegionRenderer';
+import type { GameMapV2 } from '@/lib/mapDataV2';
 
 interface GameMapProps {
   map: GameMap;
+  mapId?: string; // ID for loading GameMapV2 from trace files (for Voronoi rendering)
   players: Player[];
   onCityClick?: (cityId: string, cityName: string) => void;
   selectedCities?: string[];
@@ -21,6 +26,8 @@ interface GameMapProps {
 
 export default function GameMapComponent({
   map,
+  mapId,
+
   players,
   onCityClick,
   selectedCities = [],
@@ -30,24 +37,47 @@ export default function GameMapComponent({
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
   const [countryOutlinePath, setCountryOutlinePath] = useState<string | null>(null);
   const [cityOverrides, setCityOverrides] = useState<Record<string, { x: number; y: number }>>({});
+  const [voronoiRegions, setVoronoiRegions] = useState<RenderedRegion[] | null>(null);
+  const [loadedMap, setLoadedMap] = useState<GameMap>(map); // State for map loaded from trace files
+
+  // Load fresh map data from trace files when mapId is provided
+  useEffect(() => {
+    if (!mapId) {
+      setLoadedMap(map); // Fallback to prop if no mapId
+      return;
+    }
+
+    const loadMapFromTrace = async () => {
+      const mapV2 = await getCachedMap(mapId);
+      if (mapV2) {
+        // Convert GameMapV2 to GameMap format
+        const convertedMap = convertGameMapV2ToGameMap(mapV2);
+        setLoadedMap(convertedMap);
+      } else {
+        setLoadedMap(map); // Fallback if loading fails
+      }
+    };
+
+    loadMapFromTrace();
+  }, [mapId, map]);
 
   useEffect(() => {
     let cancelled = false;
     async function loadOutline() {
       try {
-        const resp = await fetch(`/maps/${map.id}.geo.json`);
+        const resp = await fetch(`/maps/${loadedMap.id}.geo.json`);
         if (!resp.ok) {
           if (!cancelled) setCountryOutlinePath(null);
           return;
         }
         const data = (await resp.json()) as GeoJson;
         const polygons = getPolygonsFromGeoJson(data);
-        const selected = selectBestPolygon(polygons, map.id);
+        const selected = selectBestPolygon(polygons, loadedMap.id);
         if (!selected) {
           if (!cancelled) setCountryOutlinePath(null);
           return;
         }
-        const path = buildOutlinePath(selected, map.id);
+        const path = buildOutlinePath(selected, loadedMap.id);
         if (!cancelled) setCountryOutlinePath(path);
       } catch (err) {
         if (!cancelled) setCountryOutlinePath(null);
@@ -58,13 +88,13 @@ export default function GameMapComponent({
     return () => {
       cancelled = true;
     };
-  }, [map.id]);
+  }, [loadedMap.id]);
 
   useEffect(() => {
     let cancelled = false;
     async function loadCities() {
       try {
-        const resp = await fetch(`/api/cities?mapId=${map.id}`);
+        const resp = await fetch(`/api/cities?mapId=${loadedMap.id}`);
         if (!resp.ok) return;
         const payload = (await resp.json()) as { ok: boolean; data?: { cities: Array<{ id: string; x: number; y: number }> } };
         if (!payload.ok || !payload.data?.cities) return;
@@ -82,7 +112,18 @@ export default function GameMapComponent({
     return () => {
       cancelled = true;
     };
-  }, [map.id]);
+  }, [loadedMap.id]);
+
+  // Load precomputed Voronoi regions from the trace files using mapId
+  useEffect(() => {
+    if (!mapId) return; // Ensure we have a mapId to load from
+    
+    const loadRegions = async () => {
+      const regions = await getVoronoiRegions(mapId);
+      setVoronoiRegions(regions);
+    };
+    loadRegions();
+  }, [mapId]);
 
   // Get player color for a city
   const getCityColor = (cityId: string): string => {
@@ -132,28 +173,28 @@ export default function GameMapComponent({
     <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-900 rounded-lg p-4 flex flex-col">
       {!compact && (
         <div className="mb-2">
-          <h3 className="text-lg font-bold text-white">{map.name}</h3>
+          <h3 className="text-lg font-bold text-white">{loadedMap.name}</h3>
           <p className="text-xs text-gray-400">
-            {map.regions.length} regions • {map.regions.flatMap((r) => r.cities).length} cities
+            {loadedMap.regions.length} regions • {loadedMap.regions.flatMap((r) => r.cities).length} cities
           </p>
         </div>
       )}
 
       {/* SVG Map */}
       <svg
-        viewBox={`0 0 ${map.width} ${map.height}`}
+        viewBox={`0 0 ${loadedMap.width} ${loadedMap.height}`}
         className={`flex-1 ${compact ? '' : 'bg-slate-800 rounded border-2 border-slate-600 hover:border-slate-500 transition-colors'}`}
         style={{ maxHeight: '100%' }}
       >
         {/* Background */}
-        <rect width={map.width} height={map.height} fill="#1e293b" />
+        <rect width={loadedMap.width} height={loadedMap.height} fill="#1e293b" />
 
         <defs>
           {countryOutlinePath && (
-            <clipPath id={`country-clip-${map.id}`} clipPathUnits="userSpaceOnUse">
+            <clipPath id={`country-clip-${loadedMap.id}`} clipPathUnits="userSpaceOnUse">
               <path
                 d={countryOutlinePath}
-                transform={`scale(${map.width / 100} ${map.height / 100})`}
+                transform={`scale(${loadedMap.width / 100} ${loadedMap.height / 100})`}
               />
             </clipPath>
           )}
@@ -161,12 +202,12 @@ export default function GameMapComponent({
 
         {/* Country Outline */}
         {countryOutlinePath && (
-          <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+          <g transform={`scale(${loadedMap.width / 100} ${loadedMap.height / 100})`}>
             <path
               d={countryOutlinePath}
               fill="none"
               stroke="#fbbf24"
-              strokeWidth="1.2"
+              strokeWidth="0.6"
               strokeOpacity="1"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -174,93 +215,121 @@ export default function GameMapComponent({
           </g>
         )}
 
-        {/* Region outlines and backgrounds */}
-        <g clipPath={countryOutlinePath ? `url(#country-clip-${map.id})` : undefined}>
-          {map.regions.map((region) => {
-            const cities = region.cities;
-            if (cities.length === 0) return null;
-
-            const xs = cities.map((c) => ((cityOverrides[c.id]?.x ?? c.x) / 100) * map.width);
-            const ys = cities.map((c) => ((cityOverrides[c.id]?.y ?? c.y) / 100) * map.height);
-            const minX = Math.min(...xs);
-            const maxX = Math.max(...xs);
-            const minY = Math.min(...ys);
-            const maxY = Math.max(...ys);
-            const padding = 40;
-
-            return (
-              <g key={`region-${region.id}`}>
-                {/* If a regionOutline is provided, render it (assumed in 0-100 coord space) */}
-                {region.regionOutline ? (
-                  <g transform={`scale(${map.width / 100} ${map.height / 100})`}>
+        {/* Voronoi regions visualization */}
+        {voronoiRegions && (
+          <g clipPath={countryOutlinePath ? `url(#country-clip-${loadedMap.id})` : undefined}>
+            {voronoiRegions.map((region, idx) => (
+              <g key={`voronoi-region-${idx}`}>
+                {/* Voronoi cells for this region */}
+                {region.cells.map((cell, cellIdx) => (
+                  <g key={`cell-${idx}-${cellIdx}`}>
+                    {/* Cell fill */}
                     <path
-                      d={region.regionOutline}
-                      fill={region.regionColor || '#2563eb'}
-                      fillOpacity={region.regionColor ? 0.14 : 0.06}
-                      stroke={region.regionColor || '#60a5fa'}
-                      strokeWidth="0.8"
-                      strokeOpacity={region.regionColor ? 0.9 : 0.45}
+                      d={cell.svgPath}
+                      fill={region.region.regionColor}
+                      fillOpacity="0.08"
+                      stroke={region.region.regionColor}
+                      strokeWidth="0.5"
+                      strokeOpacity="0.15"
+                      strokeLinejoin="round"
+                      shapeRendering="crispEdges"
                     />
                   </g>
-                ) : (
-                  /* Fallback rectangle bounding box when no outline provided */
-                  <>
-                    <rect
-                      x={minX - padding}
-                      y={minY - padding}
-                      width={maxX - minX + padding * 2}
-                      height={maxY - minY + padding * 2}
-                      fill="none"
-                      stroke="#3b82f6"
-                      strokeWidth="2"
-                      opacity="0.4"
-                      rx="8"
-                    />
-
-                    {/* Semi-transparent region fill */}
-                    <rect
-                      x={minX - padding}
-                      y={minY - padding}
-                      width={maxX - minX + padding * 2}
-                      height={maxY - minY + padding * 2}
-                      fill="#3b82f6"
-                      opacity="0.05"
-                      rx="8"
-                    />
-                  </>
-                )}
-
-                {/* Region label */}
-                <text
-                  x={minX - padding + 10}
-                  y={minY - padding + 18}
-                  fontSize="12"
-                  fill="#60a5fa"
-                  fontWeight="bold"
-                  className="pointer-events-none select-none"
-                >
-                  {region.name}
-                </text>
+                ))}
               </g>
-            );
-          })}
-        </g>
+            ))}
+          </g>
+        )}
+
+        {/* Fallback: Region outlines if Voronoi not available */}
+        {!voronoiRegions && (
+          <g clipPath={countryOutlinePath ? `url(#country-clip-${loadedMap.id})` : undefined}>
+            {loadedMap.regions.map((region) => {
+              const cities = region.cities;
+              if (cities.length === 0) return null;
+
+              const xs = cities.map((c) => ((cityOverrides[c.id]?.x ?? c.x) / 100) * loadedMap.width);
+              const ys = cities.map((c) => ((cityOverrides[c.id]?.y ?? c.y) / 100) * loadedMap.height);
+              const minX = Math.min(...xs);
+              const maxX = Math.max(...xs);
+              const minY = Math.min(...ys);
+              const maxY = Math.max(...ys);
+              const padding = 40;
+
+              return (
+                <g key={`region-${region.id}`}>
+                  {/* If a regionOutline is provided, render it (assumed in 0-100 coord space) */}
+                  {region.regionOutline ? (
+                    <g transform={`scale(${loadedMap.width / 100} ${loadedMap.height / 100})`}>
+                      <path
+                        d={region.regionOutline}
+                        fill={region.regionColor || '#2563eb'}
+                        fillOpacity={region.regionColor ? 0.14 : 0.06}
+                        stroke={region.regionColor || '#60a5fa'}
+                        strokeWidth="0.8"
+                        strokeOpacity={region.regionColor ? 0.9 : 0.45}
+                      />
+                    </g>
+                  ) : (
+                    /* Fallback rectangle bounding box when no outline provided */
+                    <>
+                      <rect
+                        x={minX - padding}
+                        y={minY - padding}
+                        width={maxX - minX + padding * 2}
+                        height={maxY - minY + padding * 2}
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="1"
+                        opacity="0.4"
+                        rx="8"
+                      />
+
+                      {/* Semi-transparent region fill */}
+                      <rect
+                        x={minX - padding}
+                        y={minY - padding}
+                        width={maxX - minX + padding * 2}
+                        height={maxY - minY + padding * 2}
+                        fill="#3b82f6"
+                        opacity="0.05"
+                        rx="8"
+                      />
+                    </>
+                  )}
+
+                  {/* Region label */}
+                  <text
+                    x={minX - padding + 10}
+                    y={minY - padding + 18}
+                    fontSize="12"
+                    fill="#60a5fa"
+                    fontWeight="bold"
+                    className="pointer-events-none select-none"
+                  >
+                    {region.name}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
 
         {/* Connections (Power Lines) */}
-        {map.connections.map((conn, idx) => {
-          const cityA = map.regions
+        {loadedMap.connections.map((conn, idx) => {
+          const cityA = loadedMap.regions
             .flatMap((r) => r.cities)
             .find((c) => c.id === conn.cityA);
-          const cityB = map.regions
+          const cityB = loadedMap.regions
             .flatMap((r) => r.cities)
             .find((c) => c.id === conn.cityB);
 
           if (!cityA || !cityB) return null;
 
-          const x1 = ((cityOverrides[cityA.id]?.x ?? cityA.x) / 100) * map.width;
-          const y1 = ((cityOverrides[cityA.id]?.y ?? cityA.y) / 100) * map.height;
-          const x2 = ((cityOverrides[cityB.id]?.x ?? cityB.x) / 100) * map.width;
-          const y2 = ((cityOverrides[cityB.id]?.y ?? cityB.y) / 100) * map.height;
+          const x1 = ((cityOverrides[cityA.id]?.x ?? cityA.x) / 100) * loadedMap.width;
+          const y1 = ((cityOverrides[cityA.id]?.y ?? cityA.y) / 100) * loadedMap.height;
+          const x2 = ((cityOverrides[cityB.id]?.x ?? cityB.x) / 100) * loadedMap.width;
+          const y2 = ((cityOverrides[cityB.id]?.y ?? cityB.y) / 100) * loadedMap.height;
 
           return (
             <line
@@ -270,23 +339,36 @@ export default function GameMapComponent({
               x2={x2}
               y2={y2}
               stroke="#475569"
-              strokeWidth="2"
+              strokeWidth="1"
               opacity="0.4"
             />
           );
         })}
 
         {/* Cities */}
-        {map.regions.flatMap((region) =>
+        {loadedMap.regions.flatMap((region) =>
           region.cities.map((city) => {
             const displayX = cityOverrides[city.id]?.x ?? city.x;
             const displayY = cityOverrides[city.id]?.y ?? city.y;
-            const x = (displayX / 100) * map.width;
-            const y = (displayY / 100) * map.height;
+            const x = (displayX / 100) * loadedMap.width;
+            const y = (displayY / 100) * loadedMap.height;
             const isSelected = selectedCities.includes(city.id);
             const isHovered = hoveredCity === city.id;
             const color = getCityColor(city.id);
             const isClickable = buildMode;
+            const shieldWidth = 20;
+            const shieldTop = y - 12;
+            const shieldLeft = x - shieldWidth / 2;
+            const shieldRight = x + shieldWidth / 2;
+            const shieldMid = y + 4;
+            const shieldBottom = y + 14;
+            const ribbonTop = y + 2;
+            const ribbonBottom = y + 11;
+            const labelText = city.name;
+            const labelWidth = Math.max(14, labelText.length * 3.9 + 2);
+            const ribbonLeft = x - labelWidth / 2;
+            const ribbonRight = x + labelWidth / 2;
+            const labelScaleX = Math.min(1, 10 / Math.max(1, labelText.length));
 
             return (
               <g
@@ -301,7 +383,7 @@ export default function GameMapComponent({
                   <circle
                     cx={x}
                     cy={y}
-                    r={12}
+                    r={16}
                     fill="none"
                     stroke="#fbbf24"
                     strokeWidth="2"
@@ -314,7 +396,7 @@ export default function GameMapComponent({
                   <circle
                     cx={x}
                     cy={y}
-                    r={10}
+                    r={14}
                     fill="none"
                     stroke="#60a5fa"
                     strokeWidth="2"
@@ -322,33 +404,47 @@ export default function GameMapComponent({
                   />
                 )}
 
-                {/* City circle */}
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={6}
+                {/* City shield marker */}
+                {/* Shield base */}
+                <path
+                  d={`M ${shieldLeft} ${shieldTop} L ${shieldRight} ${shieldTop} L ${shieldRight - 2} ${shieldMid} L ${x} ${shieldBottom} L ${shieldLeft + 2} ${shieldMid} Z`}
                   fill={color}
                   stroke="white"
-                  strokeWidth="1.5"
-                  opacity={isHovered ? 1 : 0.85}
+                  strokeWidth="1.6"
+                  opacity={isHovered ? 1 : 0.9}
+                />
+                <circle
+                  cx={x}
+                  cy={y - 2}
+                  r={3.2}
+                  fill="white"
+                  opacity={isHovered ? 0.95 : 0.85}
                 />
 
-                {/* City label - always visible */}
-                <g>
+                {/* Ribbon name band */}
+                <g className="pointer-events-none select-none">
+                  <path
+                    d={`M ${ribbonLeft - 0.5} ${ribbonTop} L ${ribbonRight + 0.5} ${ribbonTop} L ${ribbonRight - 0.5} ${ribbonBottom} L ${ribbonLeft + 0.5} ${ribbonBottom} Z`}
+                    fill="#0f172a"
+                    stroke="white"
+                    strokeWidth="0.8"
+                    opacity={isHovered ? 0.95 : 0.85}
+                  />
                   <text
                     x={x}
-                    y={y + 18}
+                    y={ribbonTop + 7}
                     textAnchor="middle"
-                    fontSize="10"
+                    fontSize="7"
                     fill="white"
                     fontWeight="bold"
-                    className="pointer-events-none select-none drop-shadow"
                     style={{
-                      textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-                      filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.9))',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                      filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.8))',
+                      letterSpacing: '-0.2px',
                     }}
+                    transform={`translate(${x} ${ribbonTop + 7}) scale(${labelScaleX} 1) translate(${-x} ${-(ribbonTop + 7)})`}
                   >
-                    {city.name}
+                    {labelText}
                   </text>
                 </g>
 
@@ -427,4 +523,38 @@ export default function GameMapComponent({
       )}
     </div>
   );
+}
+
+/**
+ * Convert GameMapV2 (trace file format) to GameMap (legacy format for game logic)
+ */
+function convertGameMapV2ToGameMap(mapV2: GameMapV2): GameMap {
+  return {
+    id: mapV2.id,
+    name: mapV2.name,
+    width: mapV2.width,
+    height: mapV2.height,
+    regions: mapV2.regions.map(region => ({
+      id: region.id,
+      name: region.name,
+      cities: mapV2.cities
+        .filter(city => 
+          region.cityIds.includes((city as any).id)
+        )
+        .map(city => ({
+          id: (city as any).id,
+          name: city.name,
+          x: city.x,
+          y: city.y,
+          region: region.id,
+        })),
+      costMultiplier: 1.0,
+      regionColor: region.regionColor,
+    })),
+    connections: mapV2.connections.map(conn => ({
+      cityA: conn.cityA,
+      cityB: conn.cityB,
+    })),
+    countryOutline: mapV2.countryOutline,
+  } as any;
 }

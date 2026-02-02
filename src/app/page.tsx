@@ -58,13 +58,16 @@ function GameSetup() {
         <p className="text-gray-400 text-center mb-6">Recharged - Build your power empire</p>
         
         {/* Development Tools Links */}
-        <div className="flex justify-center gap-4 mb-6 text-sm">
-          <Link href="/editor" className="text-emerald-400 hover:text-emerald-300 transition-colors">
-            🗺️ Map Editor
-          </Link>
-          <Link href="/devtools" className="text-gray-500 hover:text-gray-400 transition-colors line-through" title="Deprecated - use Map Editor">
-            Devtools (old)
-          </Link>
+        <div className="flex justify-center mb-6 text-sm">
+          <div className="flex items-center gap-3">
+            <Link href="/editor" className="text-emerald-400 hover:text-emerald-300 transition-colors">
+              🗺️ Map Editor
+            </Link>
+            <span className="text-slate-600">•</span>
+            <Link href="/plants/editor" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+              ⚙️ Plant Editor
+            </Link>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -74,13 +77,12 @@ function GameSetup() {
             <div className="flex gap-2">
               <button
                 onClick={() => setGameMode('pvp')}
-                className={`flex-1 py-2 px-3 rounded font-semibold transition-colors text-sm ${
-                  gameMode === 'pvp'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
-                }`}
+                disabled
+                className="flex-1 py-2 px-3 rounded font-semibold transition-colors text-sm bg-slate-700/50 text-gray-500 cursor-not-allowed"
+                title="Multiplayer mode coming soon"
               >
                 Multiplayer
+                <span className="text-xs block">Coming Soon</span>
               </button>
               <button
                 onClick={() => setGameMode('solo')}
@@ -167,7 +169,7 @@ function GameSetup() {
                   onClick={() => setSelectedPreview(selectedMap)}
                 >
                   <div className="w-full h-full block">
-                    <GameMapComponent map={MAPS[selectedMap]} players={[]} compact />
+                    <GameMapComponent map={MAPS[selectedMap]} mapId={selectedMap} players={[]} compact />
                   </div>
                   <div className="mt-2 text-xs text-gray-300 text-center">
                     {mapObj.name} • {mapObj.regions.length} regions • {cityCount} cities
@@ -197,7 +199,7 @@ function GameSetup() {
                   </button>
                 </div>
                 <div className="w-full h-full">
-                  <GameMapComponent map={MAPS[selectedPreview]} players={[]} compact={false} />
+                  <GameMapComponent map={MAPS[selectedPreview]} mapId={selectedPreview} players={[]} compact={false} />
                 </div>
               </div>
             </div>

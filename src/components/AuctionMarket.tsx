@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import { useGame } from '@/contexts/GameContext';
 import PowerPlantCard from './PowerPlantCard';
 import { PowerPlant } from '@/types/game';
-import { RobotAI } from '@/lib/robotAI';
 
 export default function AuctionMarket() {
   const { state, dispatch } = useGame();
@@ -19,50 +18,85 @@ export default function AuctionMarket() {
   const currentPlayer = state.players.find(p => p.id === state.currentTurn);
   const isHumanTurn = currentPlayer && !currentPlayer.isRobot;
 
-  // Auto-play robot turns
+  // Check if all remaining auction participants are robots
+  const allRemainingAreRobots = state.auction 
+    ? Array.from(state.auction.participants).every(playerId => {
+        const player = state.players.find(p => p.id === playerId);
+        return player?.isRobot;
+      })
+    : false;
+
+  // Check if all players who still need plants are robots (for auto-start logic)
+  const allPlayersNeedingPlantsAreRobots = state.players
+    .filter(p => !state.playersWithPlantsThisRound.has(p.id))
+    .every(p => p.isRobot);
+
+  // Auto-play robot turns in active auction
   useEffect(() => {
     if (!currentPlayer || !currentPlayer.isRobot || !state.auction) return;
 
-    const timer = setTimeout(() => {
-      const difficulty = (currentPlayer.robotDifficulty || 'medium') as string;
-      const strategy = RobotAI.STRATEGIES[difficulty.toLowerCase() as keyof typeof RobotAI.STRATEGIES];
-      
-      const bid = RobotAI.decideBid(
-        currentPlayer,
-        state.auction!.powerPlant,
-        state.auction!.currentBid,
-        strategy
-      );
+    // Use shorter delay if all remaining players are robots
+    const delay = allRemainingAreRobots ? 100 : 1500;
 
-      if (bid !== null && bid > 0 && currentPlayer.money >= bid) {
-        dispatch({
-          type: 'PLACE_BID',
-          payload: { playerId: currentPlayer.id, amount: bid },
-        });
-      } else {
-        // Robot passes
-        advanceTurn();
-      }
-    }, 1500); // Delay for visual feedback
+    // Dispatch ROBOT_TURN action instead of manual logic
+    const timer = setTimeout(() => {
+      dispatch({
+        type: 'ROBOT_TURN',
+        payload: { playerId: currentPlayer.id },
+      });
+    }, delay);
 
     return () => clearTimeout(timer);
-  }, [currentPlayer, state.auction]);
+  }, [currentPlayer, state.auction, dispatch, allRemainingAreRobots]);
 
-  const advanceTurn = () => {
-    if (!state.currentTurn) return;
+  // Auto-start auction for robot players when no auction is active
+  useEffect(() => {
     
-    const currentIndex = state.players.findIndex(p => p.id === state.currentTurn);
-    const nextIndex = (currentIndex + 1) % state.players.length;
+    if (!currentPlayer || !currentPlayer.isRobot || state.auction) {
+      return;
+    }
     
-    dispatch({
-      type: 'SET_CURRENT_TURN',
-      payload: { playerId: state.players[nextIndex].id },
-    });
-  };
+    // Check if robot already won a plant this round
+    if (state.playersWithPlantsThisRound.has(currentPlayer.id)) {
+      return;
+    }
+    
+    // Check if there are plants available
+    if (state.actualMarket.length === 0) {
+      return;
+    }
+    
+    // Robot automatically starts an auction after short delay
+    const delay = allPlayersNeedingPlantsAreRobots ? 100 : 1500;
+    
+    
+    const timer = setTimeout(() => {
+      // Select a plant using robot AI logic (for now, just pick first available)
+      const plant = state.actualMarket[0];
+      dispatch({ type: 'START_AUCTION', payload: { plantId: plant.id } });
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [currentPlayer, state.auction, state.actualMarket, state.playersWithPlantsThisRound, dispatch, allPlayersNeedingPlantsAreRobots]);
+
+  // Update bid amount to minimum when auction state changes
+  useEffect(() => {
+    if (state.auction) {
+      const minimumBid = state.auction.currentBid > 0 
+        ? state.auction.currentBid + 1 
+        : state.auction.powerPlant.number;
+      setBidAmount(minimumBid);
+    }
+  }, [state.auction?.currentBid, state.auction?.powerPlant.number]);
 
   if (!humanPlayer) return null;
 
   const handleStartAuction = (plant: PowerPlant) => {
+    // Check if human player already won a plant this round
+    if (humanPlayer && state.playersWithPlantsThisRound.has(humanPlayer.id)) {
+      return; // Already won a plant, can't start another auction
+    }
+    
     dispatch({ type: 'START_AUCTION', payload: { plantId: plant.id } });
     setBidAmount(plant.number);
   };
@@ -78,13 +112,15 @@ export default function AuctionMarket() {
         payload: { playerId: humanPlayer.id, amount: bidAmount },
       });
       setBidAmount(bidAmount + 1);
-      advanceTurn();
     }
   };
 
   const handlePass = () => {
-    if (isHumanTurn) {
-      advanceTurn();
+    if (isHumanTurn && state.auction) {
+      dispatch({
+        type: 'PASS_AUCTION',
+        payload: { playerId: humanPlayer.id },
+      });
     }
   };
 
@@ -104,10 +140,26 @@ export default function AuctionMarket() {
   if (state.auction) {
     const minimumBid = state.auction.currentBid > 0 ? state.auction.currentBid + 1 : state.auction.powerPlant.number;
     const isHighestBidder = state.auction.highestBidder === humanPlayer.id;
+    
+    // Check if human player already won a plant this round
+    const humanAlreadyWonPlant = humanPlayer && state.playersWithPlantsThisRound.has(humanPlayer.id);
+    
+    // In first round, can only pass if you're the highest bidder or already won a plant
+    const isFirstRound = state.round === 1;
+    const canPass = !isFirstRound || isHighestBidder || humanAlreadyWonPlant;
 
     return (
       <div className="w-full h-full bg-gradient-to-b from-slate-900 to-slate-950 rounded-lg p-6 flex flex-col items-center justify-center">
         <h2 className="text-2xl font-bold text-yellow-400 mb-6">⚡ Auction in Progress</h2>
+        
+        {/* Already won plant warning */}
+        {humanAlreadyWonPlant && (
+          <div className="mb-4 bg-blue-900/30 border border-blue-500 rounded-lg p-3 max-w-md">
+            <p className="text-blue-300 text-sm font-semibold text-center">
+              ✓ You already won a power plant this round. You cannot participate in this auction.
+            </p>
+          </div>
+        )}
 
         {/* Power Plant Card */}
         <div className="mb-6">
@@ -174,7 +226,7 @@ export default function AuctionMarket() {
             <div className="space-y-2">
               <button
                 onClick={handleAwardPlant}
-                disabled={!isHumanTurn}
+                disabled={!isHumanTurn || humanAlreadyWonPlant}
                 className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 rounded transition-colors"
               >
                 Win Plant for ${state.auction.currentBid}
@@ -187,19 +239,26 @@ export default function AuctionMarket() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={handlePlaceBid}
-                disabled={!isHumanTurn || bidAmount < minimumBid || bidAmount > humanPlayer.money}
+                disabled={!isHumanTurn || humanAlreadyWonPlant || bidAmount < minimumBid || bidAmount > humanPlayer.money}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 rounded transition-colors"
               >
                 Place Bid
               </button>
               <button
                 onClick={handlePass}
-                disabled={!isHumanTurn}
+                disabled={!isHumanTurn || humanAlreadyWonPlant || !canPass}
                 className="bg-red-600 hover:bg-red-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 rounded transition-colors"
+                title={!canPass ? "First round: Must place a bid before passing" : ""}
               >
                 Pass
               </button>
             </div>
+          )}
+
+          {!canPass && isFirstRound && !humanAlreadyWonPlant && (
+            <p className="text-xs text-orange-400 text-center">
+              ⚠️ First round: Must place a bid to pass
+            </p>
           )}
 
           {bidAmount < minimumBid && (
@@ -218,31 +277,87 @@ export default function AuctionMarket() {
   }
 
   // Market view (select plant to auction)
+  const humanAlreadyWon = humanPlayer && state.playersWithPlantsThisRound.has(humanPlayer.id);
+  
   return (
     <div className="w-full h-full bg-gradient-to-b from-slate-900 to-slate-950 rounded-lg p-6">
-      <h2 className="text-2xl font-bold text-yellow-400 mb-4">⚡ Power Plant Market</h2>
-      <p className="text-slate-400 mb-6">Select a power plant to start an auction</p>
+      <h2 className="text-2xl font-bold text-yellow-400 mb-6">⚡ Power Plant Market</h2>
 
-      <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[600px]">
-        {state.availablePowerPlants.slice(0, 4).map((plant) => (
-          <div key={plant.id} className="relative">
-            <PowerPlantCard plant={plant} isClickable onClick={() => handleStartAuction(plant)} />
-          </div>
-        ))}
-      </div>
-
-      {state.availablePowerPlants.length === 0 && (
-        <p className="text-slate-500 text-center mt-8">No power plants available</p>
+      {humanAlreadyWon && (
+        <div className="mb-4 bg-blue-900/30 border border-blue-500 rounded-lg p-3 text-center">
+          <p className="text-blue-300 text-sm font-semibold">
+            ✓ You already won a power plant this round. Watching other players' auctions...
+          </p>
+        </div>
       )}
 
-      <div className="mt-6">
-        <button
-          onClick={handlePass}
-          className="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 rounded transition-colors"
-        >
-          Skip Auction Phase
-        </button>
+      {/* Actual Market - Biddable Plants */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-green-400">Available for Auction</h3>
+          <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full">
+            {humanAlreadyWon ? 'Watching...' : 'Click to start auction'}
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-4 p-4 bg-green-900/20 border-2 border-green-500 rounded-lg">
+          {state.actualMarket.length > 0 ? (
+            state.actualMarket.map((plant) => (
+              <div key={plant.id} className="relative">
+                <PowerPlantCard 
+                  plant={plant} 
+                  isClickable={!humanAlreadyWon}
+                  onClick={() => handleStartAuction(plant)} 
+                />
+                {humanAlreadyWon && (
+                  <div className="absolute inset-0 bg-slate-900/60 rounded-lg flex items-center justify-center">
+                    <span className="text-slate-400 text-xs font-semibold">Watching</span>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="col-span-4 text-center text-slate-500 py-8">
+              No plants available for auction
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Futures Market - Preview Only */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-slate-400">Futures Market (Preview)</h3>
+          <span className="text-xs text-slate-500 bg-slate-800 px-3 py-1 rounded-full">
+            Not available yet
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-4 p-4 bg-slate-800/50 border-2 border-slate-600 rounded-lg opacity-75">
+          {state.futuresMarket.length > 0 ? (
+            state.futuresMarket.map((plant) => (
+              <div key={plant.id} className="relative pointer-events-none">
+                <PowerPlantCard plant={plant} />
+              </div>
+            ))
+          ) : (
+            <div className="col-span-4 text-center text-slate-600 py-8">
+              No plants in futures market
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Deck Info */}
+      {state.powerPlantDeck.length > 0 && (
+        <div className="mt-4 text-center">
+          <span className="text-xs text-slate-400 bg-slate-800 px-4 py-2 rounded-full inline-block">
+            📚 {state.powerPlantDeck.length} plants remaining in deck
+          </span>
+        </div>
+      )}
+
+      {state.actualMarket.length === 0 && state.futuresMarket.length === 0 && (
+        <p className="text-slate-500 text-center mt-8">No power plants available</p>
+      )}
     </div>
   );
 }

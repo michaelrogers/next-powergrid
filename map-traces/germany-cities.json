@@ -5,8 +5,8 @@
       "id": "hamburg",
       "name": "Hamburg",
       "regionId": "north",
-      "x": 50,
-      "y": 15
+      "x": 44.87745242011278,
+      "y": 24.24301660914582
     },
     {
       "id": "bremen",
@@ -19,8 +19,8 @@
       "id": "kiel",
       "name": "Kiel",
       "regionId": "north",
-      "x": 55.01567728921284,
-      "y": 10.000552720104928
+      "x": 41.24636542528196,
+      "y": 21.57234145815358
     },
     {
       "id": "cologne",
@@ -72,5 +72,95 @@
       "y": 50
     }
   ],
-  "lastUpdated": "2026-01-31T20:13:04.829Z"
+  "regions": [
+    {
+      "name": "North",
+      "costMultiplier": 1,
+      "regionColor": "#60a5fa",
+      "cityIds": [
+        "hamburg",
+        "kiel",
+        "lueneburg"
+      ],
+      "id": "north"
+    },
+    {
+      "id": "west",
+      "costMultiplier": 1.1,
+      "regionColor": "#ef4444",
+      "cityIds": [
+        "cologne",
+        "aachen",
+        "koblenz"
+      ]
+    },
+    {
+      "id": "central",
+      "costMultiplier": 1.05,
+      "regionColor": "#10b981",
+      "cityIds": [
+        "frankfurt"
+      ]
+    },
+    {
+      "id": "east",
+      "name": "East",
+      "costMultiplier": 0.95,
+      "regionColor": "#f59e0b",
+      "cityIds": [
+        "berlin",
+        "leipzig",
+        "dresden"
+      ]
+    },
+    {
+      "id": "south",
+      "name": "South",
+      "costMultiplier": 1.15,
+      "regionColor": "#8b5cf6",
+      "cityIds": [
+        "nuremberg",
+        "munich"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "cityA": "hamburg",
+      "cityB": "kiel"
+    },
+    {
+      "cityA": "hamburg",
+      "cityB": "berlin"
+    },
+    {
+      "cityA": "berlin",
+      "cityB": "leipzig"
+    },
+    {
+      "cityA": "leipzig",
+      "cityB": "dresden"
+    },
+    {
+      "cityA": "cologne",
+      "cityB": "aachen"
+    },
+    {
+      "cityA": "cologne",
+      "cityB": "frankfurt"
+    },
+    {
+      "cityA": "frankfurt",
+      "cityB": "nuremberg"
+    },
+    {
+      "cityA": "nuremberg",
+      "cityB": "munich"
+    },
+    {
+      "cityA": "leipzig",
+      "cityB": "nuremberg"
+    }
+  ],
+  "lastUpdated": "2026-01-31T22:21:41.423Z"
 }

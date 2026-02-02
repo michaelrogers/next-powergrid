@@ -1,9 +1,32 @@
 'use client';
 
 import Link from 'next/link';
-import { MAPS_V2 } from '@/lib/mapDataV2';
+import { useEffect, useState } from 'react';
+import { getAllMaps } from '@/lib/mapCache';
+import type { GameMapV2 } from '@/lib/mapDataV2';
 
 export default function EditorIndexPage() {
+  const [maps, setMaps] = useState<Record<string, GameMapV2 | null> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadMaps = async () => {
+      try {
+        const loadedMaps = await getAllMaps();
+        setMaps(loadedMaps);
+      } catch (error) {
+        console.error('Failed to load maps:', error);
+        setMaps({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMaps();
+  }, []);
+
+  const mapEntries = maps ? Object.entries(maps).filter(([_, map]) => map !== null) : [];
+
   return (
     <main className="w-full h-screen bg-slate-900 text-white flex items-center justify-center">
       <div className="max-w-2xl text-center px-6">
@@ -34,16 +57,40 @@ export default function EditorIndexPage() {
           </ul>
         </div>
         
-        <div className="flex gap-4 justify-center mb-6">
-          {Object.entries(MAPS_V2).map(([id, map]) => (
-            <Link
-              key={id}
-              href={`/editor/${id}`}
-              className="px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition shadow-lg hover:shadow-xl"
-            >
-              {map.name}
-            </Link>
-          ))}
+        <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden mb-6">
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 px-4 py-3 text-xs uppercase tracking-wide text-gray-400 border-b border-slate-700">
+            <div>Map</div>
+            <div>Cities</div>
+            <div>Regions</div>
+            <div>Connections</div>
+          </div>
+          <div className="divide-y divide-slate-700">
+            {loading ? (
+              <div className="px-4 py-8 text-center text-gray-400">
+                Loading maps...
+              </div>
+            ) : mapEntries.length > 0 ? (
+              mapEntries.map(([id, map]) => (
+                <Link
+                  key={id}
+                  href={`/editor/${id}`}
+                  className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 px-4 py-4 text-left hover:bg-slate-700/60 transition"
+                >
+                  <div>
+                    <div className="font-semibold text-white">{map!.name}</div>
+                    <div className="text-xs text-gray-400">ID: {map!.id}</div>
+                  </div>
+                  <div className="text-sm text-gray-200">{map!.cities.length}</div>
+                  <div className="text-sm text-gray-200">{map!.regions.length}</div>
+                  <div className="text-sm text-gray-200">{map!.connections.length}</div>
+                </Link>
+              ))
+            ) : (
+              <div className="px-4 py-8 text-center text-gray-400">
+                No maps found
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="text-sm text-gray-500">

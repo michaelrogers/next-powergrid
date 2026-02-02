@@ -4,6 +4,7 @@
  */
 
 import { GameState, PowerPlant, Player, FuelType, GamePhase, AuctionState } from '@/types/game';
+import { getPowerPlants } from './powerPlants';
 
 export class PowerGridEngine {
   /**
@@ -11,56 +12,7 @@ export class PowerGridEngine {
    * Power plants are numbered 1-10 for each region/difficulty
    */
   static createPowerPlants(): PowerPlant[] {
-    return [
-      {
-        id: 'pp_1',
-        number: 3,
-        power: 10,
-        fuelType: [FuelType.COAL],
-        fuelCapacity: 2,
-        efficiency: 1,
-      },
-      {
-        id: 'pp_2',
-        number: 4,
-        power: 12,
-        fuelType: [FuelType.COAL],
-        fuelCapacity: 2,
-        efficiency: 1,
-      },
-      {
-        id: 'pp_3',
-        number: 5,
-        power: 15,
-        fuelType: [FuelType.OIL],
-        fuelCapacity: 2,
-        efficiency: 1,
-      },
-      {
-        id: 'pp_4',
-        number: 6,
-        power: 20,
-        fuelType: [FuelType.COAL, FuelType.OIL],
-        fuelCapacity: 2,
-        efficiency: 1,
-      },
-      {
-        id: 'pp_5',
-        number: 8,
-        power: 35,
-        fuelType: [FuelType.GARBAGE],
-        fuelCapacity: 1,
-        efficiency: 1,
-      },
-      {
-        id: 'pp_6',
-        number: 9,
-        power: 40,
-        fuelType: [FuelType.NUCLEAR],
-        fuelCapacity: 1,
-        efficiency: 2,
-      },
-    ];
+    return getPowerPlants();
   }
 
   /**
@@ -68,10 +20,21 @@ export class PowerGridEngine {
    */
   static calculateMaxPower(player: Player): number {
     return player.powerPlants.reduce((total, plant) => {
-      const availableFuel = Math.min(
-        ...plant.fuelType.map((fuel) => player.resources[fuel] || 0)
+      const citiesPowered = plant.citiesPowered ?? 0;
+      if (plant.fuelType.length === 0 || plant.fuelCapacity === 0) {
+        return total + citiesPowered;
+      }
+
+      const availableFuelTotal = plant.fuelType.reduce(
+        (sum, fuel) => sum + (player.resources[fuel] || 0),
+        0
       );
-      return total + plant.power * Math.min(availableFuel, plant.fuelCapacity);
+
+      if (availableFuelTotal < plant.fuelCapacity) {
+        return total;
+      }
+
+      return total + citiesPowered;
     }, 0);
   }
 
