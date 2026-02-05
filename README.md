@@ -2,6 +2,24 @@
 
 An implementation of the classic board game **Power Grid** built with Next.js, React, and TypeScript.
 
+## Screenshots
+
+### Main Menu
+<img src="screenshots/main-menu.png" alt="Main Menu" width="600">
+
+*Game setup screen with options for solo mode with robots or multiplayer*
+
+### Main Gameplay
+<img src="screenshots/gameplay-main.png" alt="Game Board" width="600">
+
+*Main game board showing auction phase, player panels, and interactive map*
+
+### Map Editor
+<img src="screenshots/map-editor.png" alt="Map Editor" width="600">
+
+*Interactive map editor for creating and editing game maps with city placement and region management*
+
+
 ## Project Overview
 
 Power Grid is a strategic economic and energy trading board game where players compete to build and manage power plants, acquire fuel, and supply electricity to cities. This implementation provides a full digital gaming experience with both **multiplayer (2-6 players)** and **solo mode with AI robots**.
